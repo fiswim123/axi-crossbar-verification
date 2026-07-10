@@ -1,0 +1,38 @@
+# Build files
+build/
+*.vvp
+*.vcd
+simv
+simv.daidir/
+csrc/
+*.log
+*.history
+*.wlf
+*.vstf
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Verdi files
+DVEfiles/
+inter.vpd
+ucli.key
+
+# Coverage files
+cov_db/
+coverage_report/
+
+# Simulation outputs
+*.vpd
+*.fsdb
+*.shm/
+*.trn
+*.dsn
