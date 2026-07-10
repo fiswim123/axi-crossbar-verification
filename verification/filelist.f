@@ -1,11 +1,7 @@
 ###############################################################################
-#
-# AXI Crossbar File List
-#
+# RTL
 ###############################################################################
 
-# Source files
-../src/axicb_checker.sv
 ../src/axicb_pipeline.sv
 ../src/axicb_round_robin_core.sv
 ../src/axicb_round_robin.sv
@@ -24,7 +20,9 @@
 ../src/axicb_switch_top.sv
 ../src/axicb_crossbar_top.sv
 
-# Verification files
-../verification/agents/axi_interface.sv
-../verification/agents/axi_transaction.sv
-../verification/tb/axi_crossbar_tb.sv
+###############################################################################
+# UVM Verification
+###############################################################################
+
+env/axi_if.sv
+tb/axi_crossbar_tb.sv
