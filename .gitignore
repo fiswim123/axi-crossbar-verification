@@ -9,6 +9,9 @@ csrc/
 *.history
 *.wlf
 *.vstf
+vc_hdrs.h
+AN.DB/
+*.daidir
 
 # IDE files
 .vscode/

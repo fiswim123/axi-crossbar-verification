@@ -1,36 +1,31 @@
 //==========================================================================
-// T030: Outstanding Write test
+// T030: Outstanding Write test (UVM Sequence 版本)
+//       发起多个写事务，不等 B 响应就继续发下一个
+//       通过 fork/join_none 实现流水线效果
 //==========================================================================
 class axi_outstanding_test extends axi_base_test;
     `uvm_component_utils(axi_outstanding_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
 
     task run_phase(uvm_phase phase);
-        virtual axi_if v;
+        axi_wr_seq seq;
         phase.raise_objection(this);
-        v = env.mst_drv[0].vif;
-        @(posedge v.aresetn); repeat(5) @(posedge v.aclk);
+        @(posedge env.mst_drv[0].vif.aresetn);
+        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
 
-        // T030: 4 outstanding writes (pipeline AW+W, collect B later)
+        // T030: 4 outstanding writes — 流水线发出，不等前一个完成
         for (int i = 0; i < 4; i++) begin
-            @(posedge v.aclk);
-            v.awvalid <= 1; v.awaddr <= i * 16'h1000;
-            v.awlen <= 0; v.awsize <= 2; v.awburst <= 1;
-            v.awid <= 8'h10; v.awlock <= 0; v.awcache <= 0; v.awprot <= 3'b010;
-            do @(posedge v.aclk); while (!v.awready);
-            v.awvalid <= 0;
-            v.wvalid <= 1; v.wdata <= 32'hDEAD0000 + i;
-            v.wstrb <= 4'hF; v.wlast <= 1;
-            do @(posedge v.aclk); while (!v.wready);
-            v.wvalid <= 0; v.wlast <= 0;
+            seq = axi_wr_seq::type_id::create($sformatf("ostd_%0d", i));
+            seq.s_addr = i * 16'h1000;
+            seq.s_data = 32'hDEAD0000 + i;
+            seq.s_id   = 8'h10;
+            fork
+                automatic axi_wr_seq s = seq;
+                s.start(env.sqr[0]);
+            join_none
         end
-
-        // Collect 4 B responses
-        for (int i = 0; i < 4; i++) begin
-            v.bready <= 1;
-            do @(posedge v.aclk); while (!v.bvalid);
-            v.bready <= 0;
-        end
+        // 等所有 outstanding 完成
+        wait fork;
 
         #200;
         phase.drop_objection(this);

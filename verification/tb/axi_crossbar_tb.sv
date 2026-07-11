@@ -29,10 +29,18 @@ module axi_crossbar_tb;
     // Interfaces
     //--------------------------------------------------------------------------
     axi_if #(.AXI_ADDR_W(AXI_ADDR_W), .AXI_ID_W(AXI_ID_W), .AXI_DATA_W(AXI_DATA_W))
-        mst_if[4] (.aclk(aclk), .aresetn(aresetn));
+        mst_if[4] (.aclk(aclk));
 
     axi_if #(.AXI_ADDR_W(AXI_ADDR_W), .AXI_ID_W(AXI_ID_W), .AXI_DATA_W(AXI_DATA_W))
-        slv_if[4] (.aclk(aclk), .aresetn(aresetn));
+        slv_if[4] (.aclk(aclk));
+
+    // 驱动 interface 的 aresetn（test 可通过 vif 覆盖）
+    generate
+        for (genvar i = 0; i < 4; i++) begin : gen_rst
+            always @(posedge aclk) mst_if[i].aresetn <= aresetn;
+            always @(posedge aclk) slv_if[i].aresetn <= aresetn;
+        end
+    endgenerate
 
     //--------------------------------------------------------------------------
     // DUT

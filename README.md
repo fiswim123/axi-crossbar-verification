@@ -1,185 +1,137 @@
-# AXI Crossbar 验证项目
+# AXI Crossbar UVM 验证环境
 
-## 项目概述
-
-这是一个4x4 AXI Crossbar模块的完整验证环境，采用企业级数字IC验证流程。
+4×4 AXI4 Crossbar 的 UVM 验证平台，覆盖 27 个测试场景，全部走标准 `test → sequence → sequencer → driver → interface` 链路。
 
 ## 设计规格
 
 | 参数 | 值 |
 |------|-----|
-| 主接口数量 | 4 |
-| 从接口数量 | 4 |
-| 地址宽度 | 16-bit |
-| ID宽度 | 8-bit |
+| 主/从接口 | 4 × 4 |
 | 数据宽度 | 32-bit |
-| AXI协议 | AXI4 |
+| 地址宽度 | 16-bit |
+| ID 宽度 | 8-bit |
+| 协议 | AXI4 |
 
 ### 地址映射
 
-| 从接口 | 起始地址 | 结束地址 | 大小 |
-|--------|----------|----------|------|
-| SLV0   | 0x0000   | 0x0FFF   | 4KB  |
-| SLV1   | 0x1000   | 0x1FFF   | 4KB  |
-| SLV2   | 0x2000   | 0x2FFF   | 4KB  |
-| SLV3   | 0x3000   | 0x3FFF   | 4KB  |
+| Slave | 起始地址 | 结束地址 |
+|-------|---------|---------|
+| SLV0  | 0x0000  | 0x0FFF  |
+| SLV1  | 0x1000  | 0x1FFF  |
+| SLV2  | 0x2000  | 0x2FFF  |
+| SLV3  | 0x3000  | 0x3FFF  |
 
 ## 目录结构
 
 ```
 axi_crossbar/
-├── src/                          # RTL源代码
-│   ├── axicb_crossbar_top.sv    # Crossbar顶层
-│   ├── axicb_switch_top.sv      # Switch顶层
-│   ├── axicb_slv_switch.sv      # Slave Switch
-│   ├── axicb_mst_switch.sv      # Master Switch
-│   ├── axicb_round_robin.sv     # Round Robin仲裁器
-│   ├── axicb_pipeline.sv        # Pipeline模块
-│   └── ...
-├── verification/                 # 验证环境
-│   ├── agents/                  # 验证组件
-│   │   ├── axi_interface.sv     # AXI接口定义
-│   │   ├── axi_transaction.sv   # 事务类
-│   │   ├── axi_mst_agent.sv     # Master Agent
-│   │   └── axi_slv_agent.sv     # Slave Agent
-│   ├── env/                     # 验证环境
-│   │   └── axi_scoreboard.sv    # 记分板
-│   ├── coverage/                # 覆盖率
-│   │   └── axi_coverage.sv      # 覆盖率收集器
-│   ├── tests/                   # 测试用例
-│   │   └── axi_test_list.sv     # 测试库
-│   ├── tb/                      # 测试平台
-│   │   └── axi_crossbar_tb.sv   # 测试平台
-│   ├── docs/                    # 文档
-│   │   └── verification_plan.md # 验证计划
-│   ├── Makefile                 # 构建脚本
-│   └── README.md                # 使用说明
-├── verify.sh                    # 主验证脚本
-├── run_verification.sh          # 运行验证
-└── README.md                    # 本文件
+├── src/                            # RTL
+│   ├── axicb_crossbar_top.sv       # Crossbar 顶层
+│   ├── axicb_switch_top.sv         # Switch 顶层
+│   ├── axicb_slv_switch*.sv        # Slave Switch
+│   ├── axicb_mst_switch*.sv        # Master Switch
+│   ├── axicb_round_robin*.sv       # Round Robin 仲裁
+│   ├── axicb_pipeline.sv           # Pipeline
+│   └── axicb_scfifo*.sv            # 同步 FIFO
+└── verification/                   # UVM 验证环境
+    ├── env/
+    │   ├── axi_if.sv               # AXI4 Interface + SVA
+    │   └── axi_pkg.sv              # Package（include 所有组件）
+    ├── components/                 # UVM 组件
+    │   ├── axi_txn.sv              # Transaction（约束随机 + 延迟统计）
+    │   ├── axi_mst_drv.sv          # Master Driver
+    │   ├── axi_slv_drv.sv          # Slave Driver（内存模型 + 错误注入 + 背压）
+    │   ├── axi_monitor.sv          # Monitor（写/读通道采集）
+    │   ├── axi_scoreboard.sv       # Scoreboard（数据校验 + 性能统计）
+    │   ├── axi_coverage.sv         # Coverage（路由交叉 + burst 类型）
+    │   ├── axi_slv_cfg.sv          # Slave 配置（错误率、背压率、延迟）
+    │   └── axi_env.sv              # Environment（4 MST + 4 SLV + 4 SQR）
+    ├── sequences/                  # 14 个 UVM Sequence
+    ├── tests/                      # 27 个 Test（全部通过 sequence 驱动）
+    ├── tb/
+    │   └── axi_crossbar_tb.sv      # Testbench Top
+    ├── docs/
+    │   └── verification_plan.md    # 测试点分解
+    └── Makefile
 ```
 
-## 快速开始
+## UVM 架构
 
-### 前提条件
+```
+axi_crossbar_tb
+  └── axi_env
+        ├── axi_mst_drv[0..3]      ──→  sequencer[0..3]  ←──  sequence
+        ├── axi_slv_drv[0..3]       (内存模型 + 背压 + 错误注入)
+        ├── axi_monitor[0..3]       (MST 侧)  ──→  scoreboard + coverage
+        ├── axi_monitor[0..3]       (SLV 侧)
+        ├── axi_scoreboard          (写存读比 + 延迟统计)
+        └── axi_coverage            (路由/类型/长度交叉覆盖)
+```
 
-- SystemVerilog仿真器 (VCS, Xcelium, ModelSim, 或 Icarus Verilog)
-- Make工具
-- Bash shell
+## 测试用例（27 个）
 
-### 运行验证
+| 类别 | 测试 | 描述 |
+|------|------|------|
+| **基础** | `axi_basic_test` | 写 4 slave + 读回验证 |
+| | `axi_routing_test` | 多 master 多 slave 路由 |
+| | `axi_protocol_test` | 变长 burst (len=0/3/7/15) |
+| | `axi_burst_size_test` | 变长 size (1B/2B/4B) |
+| | `axi_outstanding_test` | 流水线 outstanding 写 |
+| | `axi_outstanding_read_test` | outstanding 读 |
+| | `axi_multi_master_test` | 4 master 并发写 |
+| | `axi_same_slave_test` | 多 master 写同一 slave |
+| | `axi_interleave_test` | 读写交织 |
+| **错误注入** | `axi_err_slverr_test` | SLVERR 响应 |
+| | `axi_err_decerr_test` | DECERR 响应 |
+| | `axi_err_recovery_test` | 错误后恢复 |
+| **边界** | `axi_boundary_addr_test` | 边界地址访问 |
+| | `axi_boundary_burst_test` | 最大 burst 长度 |
+| | `axi_boundary_ostd_test` | 最大 outstanding 深度 |
+| **背压** | `axi_bp_wready_test` | W 通道背压 |
+| | `axi_bp_bready_test` | B 通道背压 |
+| | `axi_bp_rready_test` | R 通道背压 |
+| | `axi_bp_all_test` | 全通道背压 |
+| **复位** | `axi_reset_wr_test` | 写传输中复位 |
+| | `axi_reset_rd_test` | 读传输中复位 |
+| | `axi_reset_recovery_test` | 多次复位循环恢复 |
+| **随机** | `axi_random_test` | 100+ 随机事务 |
+| | `axi_random_concurrent_test` | 4 master 并发随机 |
+| **性能** | `axi_perf_latency_test` | 延迟测量 |
+| | `axi_perf_bandwidth_test` | 带宽测量 |
+
+## 运行
 
 ```bash
-# 检查环境
-./verify.sh check
-
-# 运行快速验证
-./run_verification.sh
-
-# 运行完整测试套件
 cd verification
-./run_tests.sh -s vcs -t all
 
-# 使用Makefile
-make all SIM=vcs
+# 编译
+make compile SIM=vcs
+
+# 运行单个测试
+make sim SIM=vcs UVM_TEST=axi_basic_test
+
+# 运行指定测试（简写）
+make test_basic SIM=vcs
+make test_routing SIM=vcs
+
+# 全部回归
+make regression SIM=vcs
+
+# 清理
+make clean
 ```
 
-### 查看波形
+## 覆盖率
 
-```bash
-gtkwave axi_crossbar_tb.vcd &
-```
+功能覆盖点：
 
-## 验证计划
-
-### 测试场景 (62个测试用例)
-
-1. **基础功能测试** (4个)
-   - 复位测试、单次读写、写后读验证
-
-2. **路由测试** (5个)
-   - 各主接口到所有从接口路由、地址边界
-
-3. **仲裁测试** (3个)
-   - Round Robin、优先级、竞争
-
-4. **并发测试** (4个)
-   - 多主多从并发、混合读写、压力测试
-
-5. **协议测试** (4个)
-   - 突发长度/大小、Outstanding、连续事务
-
-6. **边界测试** (4个)
-   - 最小/最大地址、地址回绕、满Outstanding
-
-7. **异常测试** (3个)
-   - 事务期间复位、反压测试
-
-### 覆盖率目标
-
-- 功能覆盖率: > 95%
-- 代码覆盖率: > 90%
-- FSM覆盖率: 100%
-
-## 验证组件
-
-### 1. AXI Interface
-- 完整的AXI信号定义
-- Clocking Block用于同步
-- SVA协议检查断言
-
-### 2. AXI Transaction
-- 随机化事务生成
-- 支持所有AXI参数
-- 地址对齐约束
-
-### 3. AXI Master/Slave Agent
-- 事务驱动和监控
-- 支持突发传输
-- 统计和跟踪
-
-### 4. AXI Scoreboard
-- 地址路由验证
-- 数据完整性检查
-- 顺序检查
-
-### 5. AXI Coverage
-- 功能覆盖率收集
-- 交叉覆盖率
-- 覆盖率报告
-
-## 文档
-
-- [验证计划](verification/docs/verification_plan.md)
-- [使用说明](verification/README.md)
-- [验证总结](VERIFICATION_SUMMARY.md)
-- [完成报告](VERIFICATION_COMPLETE.md)
-
-## 工具支持
-
-### 仿真工具
-- Synopsys VCS
-- Cadence Xcelium
-- Mentor ModelSim
-- Icarus Verilog (开源)
-
-### 调试工具
-- GTKWave
-- Verdi
-- DVE
-
-## 贡献
-
-欢迎提交Issue和Pull Request！
-
-## 许可证
-
-MIT License
-
-## 联系方式
-
-如有问题，请提交Issue或联系维护者。
-
----
-
-**项目状态**: 验证环境已完成，待进一步调试和优化
+| 覆盖点 | 说明 |
+|--------|------|
+| `cp_kind` | 读/写 |
+| `cp_slave` | 4 个 slave |
+| `cp_master` | 4 个 master |
+| `cp_len` | burst 长度 (single/short/med/long) |
+| `cp_size` | burst size (1B/2B/4B) |
+| `cx_routing` | master × slave 路由交叉 (4×4=16) |
+| `cx_kind_len` | 读写 × 长度交叉 |
+| `cx_kind_size` | 读写 × size 交叉 |

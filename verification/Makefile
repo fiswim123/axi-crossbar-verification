@@ -131,6 +131,11 @@ test_bp_bready:        ; $(MAKE) sim UVM_TEST=axi_bp_bready_test SIM=$(SIM)
 test_bp_rready:        ; $(MAKE) sim UVM_TEST=axi_bp_rready_test SIM=$(SIM)
 test_bp_all:           ; $(MAKE) sim UVM_TEST=axi_bp_all_test SIM=$(SIM)
 
+# Reset tests
+test_reset_wr:         ; $(MAKE) sim UVM_TEST=axi_reset_wr_test SIM=$(SIM)
+test_reset_rd:         ; $(MAKE) sim UVM_TEST=axi_reset_rd_test SIM=$(SIM)
+test_reset_recovery:   ; $(MAKE) sim UVM_TEST=axi_reset_recovery_test SIM=$(SIM)
+
 # Random tests
 test_random:           ; $(MAKE) sim UVM_TEST=axi_random_test SIM=$(SIM)
 test_random_concurrent:; $(MAKE) sim UVM_TEST=axi_random_concurrent_test SIM=$(SIM)
@@ -159,6 +164,9 @@ regression:
 	$(MAKE) test_bp_bready SIM=$(SIM)
 	$(MAKE) test_bp_rready SIM=$(SIM)
 	$(MAKE) test_bp_all SIM=$(SIM)
+	$(MAKE) test_reset_wr SIM=$(SIM)
+	$(MAKE) test_reset_rd SIM=$(SIM)
+	$(MAKE) test_reset_recovery SIM=$(SIM)
 	$(MAKE) test_random SIM=$(SIM)
 	$(MAKE) test_perf_latency SIM=$(SIM)
 	$(MAKE) test_perf_bandwidth SIM=$(SIM)

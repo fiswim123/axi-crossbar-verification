@@ -5,9 +5,11 @@ interface axi_if #(
     parameter AXI_ID_W   = 8,
     parameter AXI_DATA_W = 32
 )(
-    input logic aclk,
-    input logic aresetn
+    input logic aclk
 );
+
+    // aresetn: 可由 testbench 驱动，也可由 test 通过 vif 驱动
+    logic aresetn = 0;
 
     // Write Address Channel
     logic                  awvalid, awready;

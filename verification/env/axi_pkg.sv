@@ -62,5 +62,8 @@ package axi_pkg;
     `include "tests/axi_random_concurrent_test.sv"
     `include "tests/axi_perf_latency_test.sv"
     `include "tests/axi_perf_bandwidth_test.sv"
+    `include "tests/axi_reset_wr_test.sv"
+    `include "tests/axi_reset_rd_test.sv"
+    `include "tests/axi_reset_recovery_test.sv"
 
 endpackage

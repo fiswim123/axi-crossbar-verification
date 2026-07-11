@@ -1,30 +1,35 @@
 //==========================================================================
-// T001-T003: Basic write/read
+// T001-T003: Basic write/read (UVM Sequence 版本)
 //==========================================================================
 class axi_basic_test extends axi_base_test;
     `uvm_component_utils(axi_basic_test)
     function new(string name, uvm_component parent); super.new(name, parent); endfunction
 
     task run_phase(uvm_phase phase);
-        bit [31:0] rdata;
+        axi_wr_seq wr_seq;
+        axi_rd_seq rd_seq;
+
         phase.raise_objection(this);
         @(posedge env.mst_drv[0].vif.aresetn);
         repeat(5) @(posedge env.mst_drv[0].vif.aclk);
 
-        // T001: Write to each slave
-        for (int s = 0; s < 4; s++)
-            mst_write(env.mst_drv[0].vif, s * 16'h1000, 32'hDEAD0000 + s, 8'h10);
+        // T001: Write to each slave via sequence
+        for (int s = 0; s < 4; s++) begin
+            wr_seq = axi_wr_seq::type_id::create($sformatf("wr_seq%0d", s));
+            wr_seq.s_addr = s * 16'h1000;
+            wr_seq.s_data = 32'hDEAD0000 + s;
+            wr_seq.s_id   = 8'h10;
+            wr_seq.start(env.sqr[0]);
+        end
 
         #200;
 
-        // T002+T003: Read back and verify
+        // T002+T003: Read back and verify via sequence
         for (int s = 0; s < 4; s++) begin
-            mst_read(env.mst_drv[0].vif, s * 16'h1000, 8'h10, rdata);
-            if (rdata === 32'hDEAD0000 + s)
-                `uvm_info("TEST", $sformatf("SLV%0d PASS: 0x%08h", s, rdata), UVM_LOW)
-            else
-                `uvm_error("TEST", $sformatf("SLV%0d FAIL: got=0x%08h exp=0x%08h",
-                           s, rdata, 32'hDEAD0000 + s))
+            rd_seq = axi_rd_seq::type_id::create($sformatf("rd_seq%0d", s));
+            rd_seq.s_addr = s * 16'h1000;
+            rd_seq.s_id   = 8'h10;
+            rd_seq.start(env.sqr[0]);
         end
 
         #200;
