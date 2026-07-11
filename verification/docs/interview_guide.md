@@ -14,6 +14,7 @@
 - [第六部分：Bug 与 Debug](#第六部分bug-与-debug)
 - [第七部分：不足与改进](#第七部分不足与改进)
 - [第八部分：基础知识追问](#第八部分基础知识追问)
+- [附录：专业术语中英文对照](#附录专业术语中英文对照)
 
 ---
 
@@ -657,3 +658,124 @@ UVM 不是一个工具，是一套**验证方法论**。它规定了：
 - 怎么复用（factory、sequence、virtual sequence）
 
 核心思想：**层次分离 + 可复用 + 覆盖率驱动**。有了这套框架，换一个 DUT 只需要改 interface 和 test，其他组件都能复用。
+
+---
+
+## 附录：专业术语中英文对照
+
+### 验证方法学
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| UVM (Universal Verification Methodology) | 通用验证方法学 | 行业标准验证框架 |
+| Constraint Random Verification | 约束随机验证 | 用 constraint 控制随机激励生成 |
+| Coverage Driven Verification | 覆盖率驱动验证 | 以覆盖率为目标驱动验证完成 |
+| Assertion Based Verification | 基于断言的验证 | 用 SVA 属性检查协议行为 |
+| Reference Model (RM) | 参考模型 | 模拟 DUT 预期行为的软件模型 |
+| Testbench (TB) | 测试平台 | 验证环境的顶层 |
+| Testplan | 验证计划 | 定义测试点和覆盖目标的文档 |
+| Regression | 回归测试 | 跑全部测试用例确认无退化 |
+
+### UVM 组件与机制
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| Sequence Item | 事务对象 | 一次事务的数据载体 |
+| Sequence | 序列 | 生成一组事务的激励脚本 |
+| Sequencer | 仲裁器 | 调度多个 sequence 的执行顺序 |
+| Driver | 驱动器 | 把事务对象转为信号级时序 |
+| Monitor | 监视器 | 被动采集接口信号，打包成事务 |
+| Scoreboard | 记分板 | 比对预期数据和实际数据 |
+| Coverage | 覆盖率 | 衡量验证完成度的指标 |
+| Agent | 代理 | Driver + Sequencer + Monitor 的封装 |
+| Environment (Env) | 环境 | 所有 UVM 组件的容器 |
+| Factory | 工厂 | 运行时替换组件类型的机制 |
+| Phase | 阶段 | UVM 仿真的生命周期（build/connect/run/report） |
+| Objection | 异议 | 控制 phase 何时结束的机制 |
+| Config DB | 配置数据库 | 组件间传递参数的全局存储 |
+| TLM (Transaction Level Modeling) | 事务级建模 | 组件间的数据传输接口 |
+| Analysis Port | 分析端口 | 一对多的广播端口（Monitor → Scoreboard/Coverage） |
+| Virtual Sequence | 虚拟序列 | 跨多个 sequencer 的顶层序列 |
+| Modport | 模块端口 | Interface 内信号方向的定义 |
+
+### AXI 协议
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| AXI (Advanced eXtensible Interface) | 高级可扩展接口 | ARM AMBA 总线协议 |
+| Master | 主设备 | 发起读写请求的一方（如 CPU） |
+| Slave | 从设备 | 响应读写请求的一方（如内存） |
+| Crossbar | 交叉开关 | 多对多的路由互连结构 |
+| Arbitration | 仲裁 | 多个 Master 竞争同一 Slave 时的调度策略 |
+| Round Robin | 轮询 | 公平轮流的仲裁方式 |
+| Burst | 突发传输 | 一次地址发送多拍数据 |
+| Burst Length | 突发长度 | 一次 burst 传输的数据拍数 |
+| Burst Size | 突发大小 | 每拍数据的字节数 (1/2/4B) |
+| Outstanding | 未完成事务 | 已发出但未收到响应的事务数量 |
+| Interleaving | 交织 | 不同事务的数据拍交替传输 |
+| Handshake | 握手 | valid/ready 同时有效时数据传输 |
+| Backpressure | 背压 | 接收方通过 ready 信号控制传输速率 |
+| Valid | 有效 | 发送方表示数据准备好 |
+| Ready | 就绪 | 接收方表示可以接收数据 |
+| Address | 地址 | 读写操作的目标地址 |
+| Write Strobe (WSTRB) | 写选通 | 按字节选择有效写入位 |
+| Response (RESP) | 响应 | Slave 返回的事务状态 |
+| OKAY (2'b00) | 正常响应 | 事务成功完成 |
+| SLVERR (2'b10) | 从设备错误 | Slave 报告错误 |
+| DECERR (2'b11) | 解码错误 | 地址无法路由到任何 Slave |
+| WLAST | 最后一拍 | 写数据通道最后一拍标志 |
+| RLAST | 最后一拍 | 读数据通道最后一拍标志 |
+
+### SystemVerilog
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| Interface | 接口 | 信号 bundle 的封装 |
+| Virtual Interface | 虚拟接口 | Interface 的指针，可在 class 中使用 |
+| Covergroup | 覆盖组 | 功能覆盖率的采样容器 |
+| Coverpoint | 覆盖点 | 单维度覆盖（如读/写） |
+| Cross | 交叉覆盖 | 多维度组合覆盖（如 master × slave） |
+| Bin | 覆盖仓 | 覆盖点的一个目标值或范围 |
+| Constraint | 约束 | 限制随机变量取值范围的规则 |
+| Randomize | 随机化 | 调用 solver 按 constraint 生成随机值 |
+| Associative Array | 关联数组 | 按任意索引访问的稀疏数组 |
+| Dynamic Array | 动态数组 | 运行时确定大小的数组 |
+| Mailbox | 邮箱 | 进程间的 FIFO 通信机制 |
+| Semaphore | 信号灯 | 进程间的互斥访问控制 |
+| SVA (SystemVerilog Assertions) | 断言 | 用属性描述时序行为的检查机制 |
+| Property | 属性 | SVA 中描述时序关系的规则 |
+| Assertion | 断言 | 检查属性是否成立的语句 |
+| Implication (|->) | 蕴含 | SVA 中的"如果...则..."关系 |
+
+### 覆盖率与度量
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| Functional Coverage | 功能覆盖率 | 验证计划中测试场景的覆盖度 |
+| Code Coverage | 代码覆盖率 | RTL 代码被执行的程度 |
+| Line Coverage | 行覆盖率 | 代码行被执行的百分比 |
+| Branch Coverage | 分支覆盖率 | if/else 分支被执行的百分比 |
+| Toggle Coverage | 翻转覆盖率 | 信号 0→1/1→0 翻转的百分比 |
+| Condition Coverage | 条件覆盖率 | 条件表达式各组合被执行的百分比 |
+| FSM Coverage | 状态机覆盖率 | 状态机各状态/转移被执行的百分比 |
+| Coverage Hole | 覆盖率空洞 | 未被任何测试覆盖的场景 |
+| Coverage Goal | 覆盖率目标 | 验证计划要求达到的覆盖率阈值 |
+
+### 仿真与调试
+
+| 英文 | 中文 | 说明 |
+|------|------|------|
+| Simulation | 仿真 | 用软件模拟硬件行为 |
+| VCS | VCS | Synopsys 的 Verilog 仿真器 |
+| Xcelium | Xcelium | Cadence 的仿真器 |
+| Waveform | 波形 | 信号随时间变化的图形 |
+| VCD (Value Change Dump) | 值变化转储 | 通用波形文件格式 |
+| FSDB | FSDB | Synopsys 的压缩波形格式 |
+| Debug | 调试 | 定位和修复错误的过程 |
+| Breakpoint | 断点 | 仿真暂停的条件 |
+| Dump | 转储 | 把数据写到文件 |
+| Elaboration | 精化 | 编译阶段的层次展开和连接 |
+| Compilation | 编译 | 把源码转为目标代码 |
+| Linking | 链接 | 把多个目标文件合并为可执行文件 |
+| Timeout | 超时 | 仿真超过最大时间限制 |
+| Objection Drop | 放弃异议 | 表示当前 phase 可以结束 |
