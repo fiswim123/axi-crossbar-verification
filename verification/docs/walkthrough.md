@@ -356,13 +356,22 @@ class axi_env extends uvm_env;
             );
 ```
 
+**这段在做什么？**
+
+DUT 有 4 个 Master 端口，每个端口需要一个独立的 Driver 来驱动信号。所以用循环创建 4 个 Driver 实例。
+
 **`for (int i = 0; i < 4; i++)` 是什么？**
 
-循环，`i` 从 0 到 3。`int i` 在 for 里声明变量（SV 允许）。
+循环，`i` 从 0 到 3，执行 4 次。`int i` 在 for 里声明变量（SV 允许，不需要提前声明）。
 
 **`$sformatf("mst_drv%0d", i)` 是什么？**
 
-格式化字符串函数。`%0d` 是十进制占位符。`$sformatf("mst_drv%0d", 0)` → `"mst_drv0"`。
+格式化字符串函数，类似 C 的 `sprintf`。`%0d` 是十进制占位符。
+- `i=0` → `"mst_drv0"`
+- `i=1` → `"mst_drv1"`
+- ...
+
+每个 Driver 需要唯一的名字，这样 UVM 层次路径里能区分它们（`env.mst_drv0`、`env.mst_drv1`...）。
 
 ```systemverilog
             slv_cfg[i] = axi_slv_cfg::type_id::create(
@@ -507,7 +516,7 @@ UVM 的主仿真 phase。和 `function` 不同，`task` 可以消耗时间（包
         axi_rd_seq rd_seq;
 ```
 
-声明两个 sequence 变量。此时还没创建对象。
+声明两个 sequence 变量。`wr_seq` 负责生成写事务，`rd_seq` 负责生成读事务。此时只是声明，还没创建对象，后面循环里才创建。
 
 ```systemverilog
         phase.raise_objection(this);
@@ -610,9 +619,19 @@ Sequence 是临时对象，用完就销毁。
     bit [7:0]  s_id;
 ```
 
+**这三个变量是做什么的？**
+
+它们是 sequence 的"配置参数"。test 在启动 sequence 之前会给它们赋值，sequence 的 `body()` 里用它们来填充事务。
+
+| 变量 | 含义 | 例子 |
+|------|------|------|
+| `s_addr` | 写的目标地址 | `0x1000`（SLV1） |
+| `s_data` | 要写入的数据 | `0xDEAD0001` |
+| `s_id` | AXI 事务 ID | `0x10`（Master 0） |
+
 **`bit [15:0]` 是什么？**
 
-16 位两态逻辑（只有 0/1，没有 x/z）。比 `logic` 仿真更快。
+16 位两态逻辑（只有 0/1，没有 x/z）。比 `logic` 仿真更快。在 class 里用 `bit`，在 interface/module 里用 `logic`。
 
 ```systemverilog
     task body();
@@ -638,7 +657,14 @@ Sequence 的主任务。`start()` 被调用时，UVM 自动调用 `body()`。
         txn.size  = 2;
 ```
 
-填充事务字段。`len=0` 表示单拍（1拍），`size=2` 表示 2^2 = 4 字节。
+把 test 配置的参数填到事务对象里。
+
+- `txn.addr = s_addr`：写到哪个地址（由 test 决定写哪个 slave）
+- `txn.id = s_id`：事务 ID（标识是哪个 master 发的）
+- `txn.len = 0`：burst 长度 - 1。`0` = 单拍传输（只写 1 个数据）
+- `txn.size = 2`：每拍字节数 = 2^size = 2^2 = 4 字节（32-bit）
+
+`len` 和 `size` 的组合决定了这次传输总共写多少数据。这里 `len=0, size=2` = 写 1 拍 × 4 字节 = 4 字节。
 
 ```systemverilog
         txn.wdata = new[1];
@@ -647,13 +673,26 @@ Sequence 的主任务。`start()` 被调用时，UVM 自动调用 `body()`。
         txn.wstrb[0] = 4'hF;
 ```
 
+**这段在做什么？**
+
+填充写数据。因为 `len=0`（单拍），所以只有 1 拍数据。
+
 **`new[1]` 是什么？**
 
-动态数组分配。`new[1]` 分配 1 个元素。必须先 new 才能赋值。
+动态数组分配。`wdata` 和 `wstrb` 是动态数组（大小不确定），必须先用 `new[1]` 分配 1 个元素，然后才能给 `wdata[0]` 赋值。不 new 直接赋值会报错。
+
+**`txn.wdata[0] = s_data` 是什么？**
+
+把 test 传入的测试数据写到数组第 0 个元素。`[0]` 是数组索引。
 
 **`4'hF` 是什么？**
 
-4 位十六进制值 `1111`。`wstrb` 是写选通，每一位控制一个字节是否写入。`4'hF` = 全部写入。
+4 位十六进制值 `1111`（二进制）。`wstrb` 是写选通（Write Strobe），AXI 用它按字节选择哪些位有效：
+- `4'hF` = `1111` = 4 个字节全部写入
+- `4'h1` = `0001` = 只写最低 1 个字节
+- `4'hC` = `1100` = 只写高 2 个字节
+
+这里用 `4'hF` 表示 4 字节全部有效。
 
 ```systemverilog
         start_item(txn);
@@ -735,7 +774,20 @@ endclass
         vif.awid    <= txn.id;
 ```
 
-在时钟沿驱动 AW 通道信号。`<=` 是非阻塞赋值，所有信号在同一时钟沿生效。
+**这段在做什么？**
+
+驱动 AXI 写地址通道（AW）。把事务对象里的字段拆开，逐个驱动到 interface 信号线上。
+
+- `awvalid <= 1`：告诉 slave "我有地址要发"
+- `awaddr <= txn.addr`：目标地址
+- `awlen <= txn.len`：burst 长度
+- `awsize <= txn.size`：每拍字节数
+- `awburst <= 2'b01`：burst 类型。`2'b01` = INCR（地址递增），这是最常用的模式
+- `awid <= txn.id`：事务 ID
+
+**`<=` 是什么？**
+
+非阻塞赋值。所有信号在同一个时钟沿同时生效，不会有先后顺序问题。硬件信号驱动必须用 `<=`。
 
 ```systemverilog
         do @(posedge vif.aclk); while (!vif.awready);
@@ -762,7 +814,15 @@ endclass
         vif.wvalid <= 0; vif.wlast <= 0;
 ```
 
-驱动 W 通道。`wlast=1` 表示这是最后一拍数据（单拍传输只有一拍）。
+**这段在做什么？**
+
+驱动写数据通道（W）。把实际数据发出去。
+
+- `wdata <= txn.wdata[0]`：第 0 拍数据（单拍只有 1 拍）
+- `wstrb <= txn.wstrb[0]`：字节选通（哪些字节有效）
+- `wlast <= 1`：告诉 slave "这是最后一拍"。AXI 协议要求 burst 传输的最后一拍必须拉高 wlast
+
+等 slave 回复 `wready=1` 后，拉低 `wvalid` 和 `wlast`，表示数据通道传输完成。
 
 ```systemverilog
         vif.bready <= 1;
@@ -772,9 +832,16 @@ endclass
     endtask
 ```
 
-等 B 通道响应。`bvalid=1` 时 slave 回复了，读取 `bresp`（OKAY=00）。
+**这段在做什么？**
 
-注意这里用 `=` 而不是 `<=`，因为是读取信号值，不是驱动。
+等待写响应通道（B）。slave 收到数据后会回复一个响应，告诉 master 写操作是否成功。
+
+- `bready <= 1`：告诉 slave "我准备好接收响应了"
+- 等 `bvalid=1`：slave 发来了响应
+- `txn.bresp = vif.bresp`：读取响应状态（`2'b00`=OKAY 成功，`2'b10`=SLVERR 错误）
+- `bready <= 0`：响应接收完毕
+
+注意这里读取信号用 `=`（阻塞赋值），不是 `<=`。`<=` 用于驱动（写入信号），`=` 用于读取（取信号值）。
 
 ---
 
@@ -797,21 +864,39 @@ endclass
             end
 ```
 
+**这段整体在做什么？**
+
+Slave Driver 的写处理任务。它被动等待 Master Driver 发来写请求，接收地址和数据，存入内存模型，然后回复响应。
+
+**前几行的逻辑：**
+1. 先把 `awready` 拉低（默认不接收）
+2. 每个时钟检查：Master 发了 `awvalid` 了吗？
+3. 如果发了，随机决定是否给 `awready`（模拟背压）
+4. 当 `awvalid && awready` 同时为 1，地址被接收
+
 **`!(vif.awvalid && vif.awready)` 是什么？**
 
-条件取反。当 valid 和 ready **不同时**为 1 时，继续循环。
+条件取反。当 valid 和 ready **不同时**为 1 时，继续循环等待。只有两者同时为 1（握手成功）才退出循环。
 
 **`cfg.should_bp(0)` 是什么？**
 
-调用配置对象的方法，随机决定是否给 ready。参数 `0` 表示 AW 通道。返回 1 表示"不给 ready"（背压）。
+调用配置对象的方法，随机决定是否施加背压。参数 `0` 表示 AW 通道。返回 1 表示"不给 ready"（背压），`!` 取反后变成 `ready=0`。这样 Master 就得继续等。
+
+这是验证的关键：通过随机背压，测试 DUT 在反压场景下是否正常工作。
 
 ```systemverilog
             awid = vif.awid; awaddr = vif.awaddr; awlen = vif.awlen;
 ```
 
+**这段在做什么？**
+
+握手成功后，从信号线上采样地址和控制信息，存到局部变量里备用。后面收数据和回复响应时要用到这些值。
+
 **用 `=` 而不是 `<=`，为什么？**
 
-这里是读取信号值到局部变量，不是驱动信号。读取用 `=`，驱动用 `<=`。
+这里是**读取**信号值到局部变量，不是驱动信号。规则：
+- **驱动**信号（写入 interface）用 `<=`：`vif.awready <= 1;`
+- **读取**信号（从 interface 取值）用 `=`：`awid = vif.awid;`
 
 ```systemverilog
             for (int i = 0; i < awlen + 1; i++) begin
@@ -827,11 +912,28 @@ endclass
             end
 ```
 
+**这段在做什么？**
+
+逐拍接收写数据。循环 `awlen + 1` 次（`len=0` 就是 1 次）。
+
+每拍的逻辑：
+1. W 通道也加随机背压（`should_bp(1)`，参数 1 = W 通道）
+2. 等 `wvalid && wready` 握手成功
+3. 把 32-bit 数据拆成 4 个字节，按字节地址存入内存模型
+4. 地址加 4（下一拍数据存到下一个 4 字节位置）
+
 **`vif.wdata[7:0]` 是什么？**
 
-位选择。`[7:0]` 取低 8 位（第 7 位到第 0 位）。`[15:8]` 取第 15~8 位。
+位选择（bit select）。`[7:0]` 取第 7 位到第 0 位（低 8 位 = 1 字节）。一个 32-bit 数据按字节拆开：
+```
+wdata[31:24] wdata[23:16] wdata[15:8] wdata[7:0]
+   字节3        字节2        字节1       字节0
+   → mem[addr+3] → mem[addr+2] → mem[addr+1] → mem[addr]
+```
 
-32 位数据按字节拆开存入内存模型。
+**为什么要拆字节？**
+
+内存模型是按字节寻址的（`bit [7:0] mem[bit [31:0]]`），一个地址存 1 字节。32-bit 数据要存到 4 个连续地址。
 
 ```systemverilog
             vif.bid    <= awid;
@@ -844,11 +946,24 @@ endclass
     endtask
 ```
 
+**这段在做什么？**
+
+收完数据后，slave 回复写响应（B 通道）。
+
+- `bid <= awid`：响应 ID 必须和请求 ID 一致（AXI 协议要求）
+- `bresp`：响应状态。正常返回 `OKAY(2'b00)`，如果之前随机决定注入错误就返回 `SLVERR(2'b10)`
+- `bvalid <= 1`：告诉 master "我有响应要发"
+- 等 `bready=1`：master 接收了响应
+- `bvalid <= 0`：响应发送完毕
+
 **`inject_err ? cfg.err_resp : 2'b00` 是什么？**
 
 三元运算符，和 C 一样。`条件 ? 真值 : 假值`。
 
-如果 `inject_err=1`，返回 `cfg.err_resp`（SLVERR=2'b10）。否则返回 `2'b00`（OKAY）。
+- `inject_err=1` → 返回 `cfg.err_resp`（SLVERR=2'b10），模拟 slave 报错
+- `inject_err=0` → 返回 `2'b00`（OKAY），正常响应
+
+这是错误注入机制：test 可以配置 `err_pct=10`（10% 概率），slave 就会随机返回错误，测试 DUT 的异常处理能力。
 
 ---
 
@@ -877,7 +992,11 @@ endclass
             txn.len  = vif.awlen;
 ```
 
-从信号上采样，创建一个事务对象。
+**这段在做什么？**
+
+Monitor 检测到 AW 握手后，创建一个事务对象，把信号线上的信息"打包"成事务。这样 Scoreboard 和 Coverage 拿到的是一个完整的事务对象，而不是零散的信号。
+
+为什么需要这一步？因为 Scoreboard 和 Coverage 工作在"事务级"，它们不关心每个时钟沿的信号值，只关心"一次完整的写操作"的所有信息。
 
 ```systemverilog
             txn.wdata = new[txn.len + 1];
@@ -887,7 +1006,13 @@ endclass
             end
 ```
 
-逐拍采样 W 通道数据。`<=` 读取当前拍的信号值。
+**这段在做什么？**
+
+逐拍采样 W 通道数据。`len=0` 时循环 1 次，`len=3` 时循环 4 次。
+
+每拍等 `wvalid && wready` 握手成功，然后把 `wdata` 存到事务对象的数组里。
+
+`new[txn.len + 1]` 先分配好数组大小（和 burst 长度一致），然后逐个填充。
 
 ```systemverilog
             @(posedge vif.aclk iff (vif.bvalid && vif.bready));
@@ -930,11 +1055,24 @@ Monitor 的 `ap.write(txn)` 触发时，UVM 自动调用所有连接的 imp 的 
             end
 ```
 
-写事务：如果响应是 OKAY（`2'b00`），把数据存到 `exp_data` 表。否则计数失败。
+**这段整体逻辑是什么？**
+
+Scoreboard 的核心思路：**先记住写了什么，读回来时再比对**。
+
+收到写事务时：
+1. 检查响应是否 OKAY（`2'b00`）
+2. 如果 OKAY，把数据存到 `exp_data` 表（"期望数据"），以地址为 key
+3. 如果不是 OKAY（slave 报错），计数失败
 
 **`exp_data[txn.addr + i * 4]` 是什么？**
 
-关联数组访问。地址作为 key，数据作为 value。`i * 4` 是因为每个数据 4 字节。
+关联数组访问。`exp_data` 是一个"地址→数据"的映射表。
+- key = 地址（`txn.addr + i * 4`）
+- value = 数据（`txn.wdata[i]`）
+
+`i * 4` 是因为每个数据 4 字节。`len=0` 时只存 1 个，`len=3` 时存 4 个。
+
+例子：写地址 `0x1000`，数据 `0xDEAD0001` → `exp_data[0x1000] = 0xDEAD0001`
 
 ```systemverilog
         end else begin
@@ -954,9 +1092,26 @@ Monitor 的 `ap.write(txn)` 触发时，UVM 自动调用所有连接的 imp 的 
     endfunction
 ```
 
+**这段整体逻辑是什么？**
+
+收到读事务时：
+1. 检查响应是否 OKAY
+2. 遍历每一拍数据，用地址去 `exp_data` 表查之前写过的期望值
+3. 如果读回来的数据和期望值不一致 → `uvm_error`（测试失败）
+4. 如果所有数据都匹配 → `rd_pass++`
+
 **`exp_data.exists(key)` 是什么？**
 
-关联数组方法，检查 key 是否存在。如果没写过这个地址，就不比对。
+关联数组方法，检查这个地址是否之前写过。如果没写过，就没有期望值可比，跳过。防止"读了一个没写过的地址"时误报错。
+
+**`txn.rdata[i] !== exp_data[key]` 的 `!==` 和 `!=` 有什么区别？**
+
+| 运算符 | 含义 |
+|--------|------|
+| `!=` | 逻辑不等（如果值里有 x，结果也是 x，不是 true/false） |
+| `!==` | 严格不等（4 态精确比较，x 就是 x，不会变成不确定） |
+
+用 `!==` 更安全。如果读回来的数据是 `x`（总线错误），`!=` 可能给出不确定结果，`!==` 会正确报告不匹配。
 
 **`txn.rdata[i] !== exp_data[key]` 的 `!==` 和 `!=` 有什么区别？**
 
@@ -979,6 +1134,13 @@ Monitor 的 `ap.write(txn)` 触发时，UVM 自动调用所有连接的 imp 的 
         cg.sample();
     endfunction
 ```
+
+**这段在做什么？**
+
+Coverage 组件收到 Monitor 广播的事务后，记录这次事务覆盖了哪些场景。
+
+- `txn = t`：把事务赋给成员变量（covergroup 里的 coverpoint 引用这个变量）
+- `cg.sample()`：触发采样，检查 `txn` 的当前值命中了哪些 bin
 
 **`cg.sample()` 做了什么？**
 
