@@ -44,9 +44,10 @@ TB_FILES = \
 
 VCS_OPTS     = -sverilog -full64 +incdir+$(SRC_DIR) +incdir+env \
                +incdir+components +incdir+sequences +incdir+tests \
-               -ntb_opts uvm-1.2 -timescale=1ns/1ps
+               -ntb_opts uvm-1.2 -timescale=1ns/1ps \
+               -cm line+cond+fsm+tgl+branch -cm_dir ./cov_db
 XCELIUM_OPTS = -sv -64bit -uvm -access +rwc
-COV_OPTS     = -cm line+cond+fsm+tgl+branch -cm_dir ./cov_db -cm_name $(UVM_TEST)
+COV_OPTS     = -cm line+cond+fsm+tgl+branch+func -cm_dir ./cov_db -cm_name $(UVM_TEST)
 SIM_OPTS     = -l sim.log +UVM_VERBOSITY=UVM_MEDIUM
 
 ###############################################################################
@@ -80,7 +81,7 @@ endif
 
 cov:
 ifeq ($(SIM),vcs)
-	urg -dir cov_db.vdb -report coverage_report
+	urg -dir cov_db -report coverage_report
 else ifeq ($(SIM),xcelium)
 	xcov -dir cov_db -report
 endif
@@ -97,6 +98,7 @@ clean:
 
 .PHONY: test_basic test_routing test_protocol test_burst_size test_outstanding \
         test_outstanding_read test_multi test_same_slave test_interleave \
+        test_full_routing \
         test_err_slverr test_err_decerr test_err_recovery \
         test_boundary_addr test_boundary_burst test_boundary_ostd \
         test_bp_wready test_bp_bready test_bp_rready test_bp_all \
@@ -114,6 +116,7 @@ test_outstanding_read: ; $(MAKE) sim UVM_TEST=axi_outstanding_read_test SIM=$(SI
 test_multi:            ; $(MAKE) sim UVM_TEST=axi_multi_master_test SIM=$(SIM)
 test_same_slave:       ; $(MAKE) sim UVM_TEST=axi_same_slave_test SIM=$(SIM)
 test_interleave:       ; $(MAKE) sim UVM_TEST=axi_interleave_test SIM=$(SIM)
+test_full_routing:     ; $(MAKE) sim UVM_TEST=axi_full_routing_test SIM=$(SIM)
 
 # Error injection tests
 test_err_slverr:       ; $(MAKE) sim UVM_TEST=axi_err_slverr_test SIM=$(SIM)
@@ -154,6 +157,7 @@ regression:
 	$(MAKE) test_multi SIM=$(SIM)
 	$(MAKE) test_same_slave SIM=$(SIM)
 	$(MAKE) test_interleave SIM=$(SIM)
+	$(MAKE) test_full_routing SIM=$(SIM)
 	$(MAKE) test_err_slverr SIM=$(SIM)
 	$(MAKE) test_err_decerr SIM=$(SIM)
 	$(MAKE) test_err_recovery SIM=$(SIM)

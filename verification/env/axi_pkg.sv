@@ -34,6 +34,7 @@ package axi_pkg;
     `include "sequences/axi_backpressure_seq.sv"
     `include "sequences/axi_random_seq.sv"
     `include "sequences/axi_perf_seq.sv"
+    `include "sequences/axi_full_routing_seq.sv"
 
     //==========================================================================
     // Tests
@@ -65,5 +66,6 @@ package axi_pkg;
     `include "tests/axi_reset_wr_test.sv"
     `include "tests/axi_reset_rd_test.sv"
     `include "tests/axi_reset_recovery_test.sv"
+    `include "tests/axi_full_routing_test.sv"
 
 endpackage

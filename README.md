@@ -1,6 +1,6 @@
 # AXI Crossbar UVM 验证环境
 
-4×4 AXI4 Crossbar 的 UVM 验证平台，覆盖 27 个测试场景，全部走标准 `test → sequence → sequencer → driver → interface` 链路。
+4×4 AXI4 Crossbar 的 UVM 验证平台，28 个测试用例全部走标准 `test → sequence → sequencer → driver → interface` 链路。
 
 ## 设计规格
 
@@ -46,11 +46,12 @@ axi_crossbar/
     │   ├── axi_coverage.sv         # Coverage（路由交叉 + burst 类型）
     │   ├── axi_slv_cfg.sv          # Slave 配置（错误率、背压率、延迟）
     │   └── axi_env.sv              # Environment（4 MST + 4 SLV + 4 SQR）
-    ├── sequences/                  # 14 个 UVM Sequence
-    ├── tests/                      # 27 个 Test（全部通过 sequence 驱动）
+    ├── sequences/                  # 15 个 UVM Sequence
+    ├── tests/                      # 28 个 Test
     ├── tb/
     │   └── axi_crossbar_tb.sv      # Testbench Top
     ├── docs/
+    │   ├── uvm_tutorial.md         # UVM 入门教程
     │   └── verification_plan.md    # 测试点分解
     └── Makefile
 ```
@@ -68,7 +69,7 @@ axi_crossbar_tb
         └── axi_coverage            (路由/类型/长度交叉覆盖)
 ```
 
-## 测试用例（27 个）
+## 测试用例（28 个）
 
 | 类别 | 测试 | 描述 |
 |------|------|------|
@@ -81,6 +82,7 @@ axi_crossbar_tb
 | | `axi_multi_master_test` | 4 master 并发写 |
 | | `axi_same_slave_test` | 多 master 写同一 slave |
 | | `axi_interleave_test` | 读写交织 |
+| | `axi_full_routing_test` | 补全路由交叉覆盖 |
 | **错误注入** | `axi_err_slverr_test` | SLVERR 响应 |
 | | `axi_err_decerr_test` | DECERR 响应 |
 | | `axi_err_recovery_test` | 错误后恢复 |
@@ -123,15 +125,24 @@ make clean
 
 ## 覆盖率
 
+全回归 28 个测试结果：
+
+| 指标 | 值 |
+|------|-----|
+| 功能覆盖率 | **98.12%** |
+| 代码覆盖率 (LINE) | 71% |
+| 代码覆盖率 (BRANCH) | 62% |
+
 功能覆盖点：
 
-| 覆盖点 | 说明 |
-|--------|------|
-| `cp_kind` | 读/写 |
-| `cp_slave` | 4 个 slave |
-| `cp_master` | 4 个 master |
-| `cp_len` | burst 长度 (single/short/med/long) |
-| `cp_size` | burst size (1B/2B/4B) |
-| `cx_routing` | master × slave 路由交叉 (4×4=16) |
-| `cx_kind_len` | 读写 × 长度交叉 |
-| `cx_kind_size` | 读写 × size 交叉 |
+| 覆盖点 | 说明 | 结果 |
+|--------|------|------|
+| `cp_kind` | 读/写 | 100% |
+| `cp_slave` | 4 个 slave | 100% |
+| `cp_master` | 4 个 master | 100% |
+| `cp_len` | burst 长度 | 100% |
+| `cp_size` | burst size | 100% |
+| `cx_routing` | master × slave 路由交叉 | 81.25% (13/16) |
+| `cx_kind_len` | 读写 × 长度 | 100% |
+| `cx_kind_size` | 读写 × size | 100% |
+| `cx_kind_slave` | 读写 × slave | 100% |

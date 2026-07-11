@@ -1,17 +1,36 @@
 # Build files
 build/
-*.vvp
-*.vcd
 simv
 simv.daidir/
+simv.vdb/
 csrc/
+vc_hdrs.h
+AN.DB/
+*.daidir
+
+# Simulation outputs
+*.vvp
+*.vcd
+*.vpd
+*.fsdb
+*.shm/
 *.log
 *.history
 *.wlf
 *.vstf
-vc_hdrs.h
-AN.DB/
-*.daidir
+
+# Coverage files
+cov_db/
+cov_db.vdb/
+cov_code/
+coverage_report/
+*.vdb
+
+# Verdi files
+DVEfiles/
+inter.vpd
+ucli.key
+.fsm.sch.verilog.xml
 
 # IDE files
 .vscode/
@@ -23,19 +42,3 @@ AN.DB/
 # OS files
 .DS_Store
 Thumbs.db
-
-# Verdi files
-DVEfiles/
-inter.vpd
-ucli.key
-
-# Coverage files
-cov_db/
-coverage_report/
-
-# Simulation outputs
-*.vpd
-*.fsdb
-*.shm/
-*.trn
-*.dsn
