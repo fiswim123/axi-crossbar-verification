@@ -1,40 +1,108 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// AXI Crossbar UVM Testbench Top
+// AXI Crossbar UVM 测试顶层 (Testbench Top)
 //
+///////////////////////////////////////////////////////////////////////////////
+// 【文件功能说明】
+// 这是整个 UVM 验证环境的最顶层模块，负责：
+//   1. 生成时钟和复位信号
+//   2. 例化 AXI 接口（Interface）
+//   3. 例化 DUT（Design Under Test，被测设计）
+//   4. 将接口通过 config_db 传递给 UVM 组件
+//   5. 启动 UVM 测试
+//   6. 配置超时和波形转储
+//
+// 【UVM 知识点】
+// testbench top 不是 UVM 组件，而是普通的 SystemVerilog module。
+// 它是连接 UVM 世界和 DUT 的桥梁：
+//   - UVM 世界：class-based，面向对象，不直接操作信号
+//   - DUT 世界：module-based，通过端口连接信号
+//   - Interface 是连接两者的纽带：UVM 通过 virtual interface 驱动/采样信号
+//
+// 【验证环境架构图】
+//   +--------------------------------------------------+
+//   |                Testbench Top (本文件)              |
+//   |  +----------+    +----------+    +----------+    |
+//   |  | mst_if[0]|    | mst_if[1]|    | mst_if[2]|... |
+//   |  +----+-----+    +----+-----+    +----+-----+    |
+//   |       |               |               |           |
+//   |  +----+-----+    +----+-----+    +----+-----+    |
+//   |  |  DUT      |    |          |    |          |    |
+//   |  | (Crossbar)|    |          |    |          |    |
+//   |  +----+-----+    +----+-----+    +----+-----+    |
+//   |       |               |               |           |
+//   |  +----+-----+    +----+-----+    +----+-----+    |
+//   |  | slv_if[0]|    | slv_if[1]|    | slv_if[2]|... |
+//   |  +----------+    +----------+    +----------+    |
+//   +--------------------------------------------------+
 ///////////////////////////////////////////////////////////////////////////////
 
 `timescale 1ns/1ps
 
 module axi_crossbar_tb;
 
+    // 【导入 UVM 包】
+    // import uvm_pkg::* 导入所有 UVM 类和方法
+    // import axi_pkg::* 导入我们自定义的验证组件包
     import uvm_pkg::*;
     import axi_pkg::*;
-    `include "uvm_macros.svh"
+    `include "uvm_macros.svh"  // 包含 UVM 宏定义（如 `uvm_component_utils 等）
 
-    parameter AXI_ADDR_W = 16;
-    parameter AXI_ID_W   = 8;
-    parameter AXI_DATA_W = 32;
+    // 【参数定义】
+    // 这些参数必须与 DUT 的参数保持一致
+    // 使用 parameter 而非硬编码，方便修改和复用
+    parameter AXI_ADDR_W = 16;  // 地址位宽：16位，可寻址 64KB 空间
+    parameter AXI_ID_W   = 8;   // ID 位宽：8位，支持 256 个不同的事务 ID
+    parameter AXI_DATA_W = 32;  // 数据位宽：32位，每次传输 4 字节
 
     //--------------------------------------------------------------------------
-    // Clock & Reset
+    // 时钟与复位生成 (Clock & Reset Generation)
     //--------------------------------------------------------------------------
+    // 【时钟生成】
+    // aclk 初始值为 0，每 5ns 翻转一次 → 时钟周期 = 10ns → 频率 = 100MHz
+    // always #5 是 SystemVerilog 的周期性行为块
     logic aclk = 0;
+
+    // 【复位信号】
+    // aresetn: AXI 标准复位信号，低电平有效（active low）
+    //   - 初始为 0（复位状态）
+    //   - 100ns 后拉高为 1（释放复位）
+    // srst: 同步复位信号，高电平有效
+    //   - 初始为 1（复位状态）
+    //   - 100ns 后拉低为 0（释放复位）
     logic aresetn = 0;
     logic srst = 1;
-    always #5 aclk = ~aclk;
-    initial begin #100; aresetn = 1; srst = 0; end
+    always #5 aclk = ~aclk;              // 时钟翻转
+    initial begin #100; aresetn = 1; srst = 0; end  // 100ns 后释放复位
 
     //--------------------------------------------------------------------------
-    // Interfaces
+    // AXI 接口例化 (Interface Instantiation)
     //--------------------------------------------------------------------------
+    // 【Master 接口数组】
+    // mst_if[4]: 4 个 Master 接口，连接 DUT 的 Slave 端口
+    //   - 每个 Master 接口对应一个 Master Agent（driver + monitor）
+    //   - Master Agent 通过这些接口发送读写请求
+    //
+    // 【Slave 接口数组】
+    // slv_if[4]: 4 个 Slave 接口，连接 DUT 的 Master 端口
+    //   - 每个 Slave 接口对应一个 Slave Agent（driver + monitor）
+    //   - Slave Agent 通过这些接口模拟从设备行为（接收请求、返回响应）
+    //
+    // 【命名约定说明】
+    // DUT 端口命名：slv0, slv1, slv2, slv3 → DUT 的 Slave 端口（连接外部 Master）
+    //               mst0, mst1, mst2, mst3 → DUT 的 Master 端口（连接外部 Slave）
+    // 这是因为 Crossbar 的 Slave 端口接收来自 Master 的请求，
+    // 而 Master 端口将请求转发给下游 Slave 设备
     axi_if #(.AXI_ADDR_W(AXI_ADDR_W), .AXI_ID_W(AXI_ID_W), .AXI_DATA_W(AXI_DATA_W))
-        mst_if[4] (.aclk(aclk));
+        mst_if[4] (.aclk(aclk));  // Master 接口，连接 DUT 的 Slave 端口
 
     axi_if #(.AXI_ADDR_W(AXI_ADDR_W), .AXI_ID_W(AXI_ID_W), .AXI_DATA_W(AXI_DATA_W))
-        slv_if[4] (.aclk(aclk));
+        slv_if[4] (.aclk(aclk));  // Slave 接口，连接 DUT 的 Master 端口
 
-    // 驱动 interface 的 aresetn（test 可通过 vif 覆盖）
+    // 【复位信号同步驱动】
+    // 使用 generate 块为每个接口的 aresetn 信号同步驱动
+    // 这样 test 可以通过 vif 覆盖复位信号（用于 reset 测试）
+    // always @(posedge aclk) 确保复位信号在时钟上升沿更新，避免亚稳态
     generate
         for (genvar i = 0; i < 4; i++) begin : gen_rst
             always @(posedge aclk) mst_if[i].aresetn <= aresetn;
@@ -43,8 +111,27 @@ module axi_crossbar_tb;
     endgenerate
 
     //--------------------------------------------------------------------------
-    // DUT
+    // DUT 例化 (Design Under Test Instantiation)
     //--------------------------------------------------------------------------
+    // 【DUT 说明】
+    // axicb_crossbar_top 是被测的 AXI Crossbar 模块
+    // 它实现了一个 4x4 的 AXI 交叉开关矩阵：
+    //   - 4 个 Slave 端口（slv0~slv3）：接收来自 4 个 Master 的请求
+    //   - 4 个 Master 端口（mst0~mst3）：将请求转发给 4 个 Slave 设备
+    //
+    // 【参数配置说明】
+    // MST0_CDC(0): Master 0 不需要跨时钟域处理
+    // MST0_OSTDREQ_NUM(4): Master 0 最多支持 4 个未完成请求
+    // MST0_OSTDREQ_SIZE(1): 每个未完成请求最大 1 个数据拍
+    // MST0_PRIORITY(0): Master 0 优先级为 0（最低）
+    // MST0_ROUTES(4'b1111): Master 0 可以访问所有 4 个 Slave
+    // MST0_ID_MASK(8'h10): Master 0 的 ID 掩码，用于区分不同 Master 的事务
+    // MST0_RW(0): 读写模式，0 表示支持读写
+    //
+    // SLV0_START_ADDR(0), SLV0_END_ADDR(4095): Slave 0 的地址范围 0~4095 (4KB)
+    // SLV1_START_ADDR(4096), SLV1_END_ADDR(8191): Slave 1 的地址范围 4096~8191 (4KB)
+    // SLV2_START_ADDR(8192), SLV2_END_ADDR(12287): Slave 2 的地址范围 8192~12287 (4KB)
+    // SLV3_START_ADDR(12288), SLV3_END_ADDR(16383): Slave 3 的地址范围 12288~16383 (4KB)
     axicb_crossbar_top #(
         .AXI_ADDR_W(AXI_ADDR_W), .AXI_ID_W(AXI_ID_W), .AXI_DATA_W(AXI_DATA_W),
         .MST_NB(4), .SLV_NB(4), .MST_PIPELINE(0), .SLV_PIPELINE(0),
@@ -66,8 +153,14 @@ module axi_crossbar_tb;
         .SLV3_CDC(0), .SLV3_START_ADDR(12288),  .SLV3_END_ADDR(16383),
         .SLV3_OSTDREQ_NUM(4), .SLV3_OSTDREQ_SIZE(1), .SLV3_KEEP_BASE_ADDR(0)
     ) dut (
-        .aclk(aclk), .aresetn(aresetn), .srst(srst),
-        // Master 0 (mst_if[0])
+        // 【全局信号】
+        .aclk(aclk),          // 全局时钟
+        .aresetn(aresetn),     // 全局复位（低有效）
+        .srst(srst),           // 同步复位（高有效）
+
+        // 【Master 0 端口连接】
+        // 连接到 mst_if[0]（外部 Master Agent 通过此接口驱动）
+        // 注意：DUT 的 slv0 端口连接到 mst_if[0]，因为这是 DUT 的 Slave 端口
         .slv0_aclk(aclk), .slv0_aresetn(aresetn), .slv0_srst(srst),
         .slv0_awvalid(mst_if[0].awvalid), .slv0_awready(mst_if[0].awready),
         .slv0_awaddr(mst_if[0].awaddr),   .slv0_awlen(mst_if[0].awlen),
@@ -75,7 +168,7 @@ module axi_crossbar_tb;
         .slv0_awlock(mst_if[0].awlock),   .slv0_awcache(mst_if[0].awcache),
         .slv0_awprot(mst_if[0].awprot),   .slv0_awqos(mst_if[0].awqos),
         .slv0_awregion(mst_if[0].awregion), .slv0_awid(mst_if[0].awid),
-        .slv0_awuser(1'b0),
+        .slv0_awuser(1'b0),  // user 信号未使用，接地
         .slv0_wvalid(mst_if[0].wvalid),   .slv0_wready(mst_if[0].wready),
         .slv0_wlast(mst_if[0].wlast),     .slv0_wdata(mst_if[0].wdata),
         .slv0_wstrb(mst_if[0].wstrb),     .slv0_wuser(1'b0),
@@ -93,7 +186,8 @@ module axi_crossbar_tb;
         .slv0_rid(mst_if[0].rid),         .slv0_rresp(mst_if[0].rresp),
         .slv0_rdata(mst_if[0].rdata),     .slv0_rlast(mst_if[0].rlast),
         .slv0_ruser(1'b0),
-        // Master 1 (mst_if[1])
+
+        // 【Master 1 端口连接】
         .slv1_aclk(aclk), .slv1_aresetn(aresetn), .slv1_srst(srst),
         .slv1_awvalid(mst_if[1].awvalid), .slv1_awready(mst_if[1].awready),
         .slv1_awaddr(mst_if[1].awaddr),   .slv1_awlen(mst_if[1].awlen),
@@ -119,7 +213,8 @@ module axi_crossbar_tb;
         .slv1_rid(mst_if[1].rid),         .slv1_rresp(mst_if[1].rresp),
         .slv1_rdata(mst_if[1].rdata),     .slv1_rlast(mst_if[1].rlast),
         .slv1_ruser(1'b0),
-        // Master 2 (mst_if[2])
+
+        // 【Master 2 端口连接】
         .slv2_aclk(aclk), .slv2_aresetn(aresetn), .slv2_srst(srst),
         .slv2_awvalid(mst_if[2].awvalid), .slv2_awready(mst_if[2].awready),
         .slv2_awaddr(mst_if[2].awaddr),   .slv2_awlen(mst_if[2].awlen),
@@ -145,7 +240,8 @@ module axi_crossbar_tb;
         .slv2_rid(mst_if[2].rid),         .slv2_rresp(mst_if[2].rresp),
         .slv2_rdata(mst_if[2].rdata),     .slv2_rlast(mst_if[2].rlast),
         .slv2_ruser(1'b0),
-        // Master 3 (mst_if[3])
+
+        // 【Master 3 端口连接】
         .slv3_aclk(aclk), .slv3_aresetn(aresetn), .slv3_srst(srst),
         .slv3_awvalid(mst_if[3].awvalid), .slv3_awready(mst_if[3].awready),
         .slv3_awaddr(mst_if[3].awaddr),   .slv3_awlen(mst_if[3].awlen),
@@ -171,7 +267,10 @@ module axi_crossbar_tb;
         .slv3_rid(mst_if[3].rid),         .slv3_rresp(mst_if[3].rresp),
         .slv3_rdata(mst_if[3].rdata),     .slv3_rlast(mst_if[3].rlast),
         .slv3_ruser(1'b0),
-        // Slave 0 (slv_if[0])
+
+        // 【Slave 0 端口连接】
+        // 连接到 slv_if[0]（外部 Slave Agent 通过此接口响应）
+        // DUT 的 mst0 端口连接到 slv_if[0]，因为这是 DUT 的 Master 端口
         .mst0_aclk(aclk), .mst0_aresetn(aresetn), .mst0_srst(srst),
         .mst0_awvalid(slv_if[0].awvalid), .mst0_awready(slv_if[0].awready),
         .mst0_awaddr(slv_if[0].awaddr),   .mst0_awlen(slv_if[0].awlen),
@@ -197,7 +296,8 @@ module axi_crossbar_tb;
         .mst0_rid(slv_if[0].rid),         .mst0_rresp(slv_if[0].rresp),
         .mst0_rdata(slv_if[0].rdata),     .mst0_rlast(slv_if[0].rlast),
         .mst0_ruser(1'b0),
-        // Slave 1 (slv_if[1])
+
+        // 【Slave 1 端口连接】
         .mst1_aclk(aclk), .mst1_aresetn(aresetn), .mst1_srst(srst),
         .mst1_awvalid(slv_if[1].awvalid), .mst1_awready(slv_if[1].awready),
         .mst1_awaddr(slv_if[1].awaddr),   .mst1_awlen(slv_if[1].awlen),
@@ -223,7 +323,8 @@ module axi_crossbar_tb;
         .mst1_rid(slv_if[1].rid),         .mst1_rresp(slv_if[1].rresp),
         .mst1_rdata(slv_if[1].rdata),     .mst1_rlast(slv_if[1].rlast),
         .mst1_ruser(1'b0),
-        // Slave 2 (slv_if[2])
+
+        // 【Slave 2 端口连接】
         .mst2_aclk(aclk), .mst2_aresetn(aresetn), .mst2_srst(srst),
         .mst2_awvalid(slv_if[2].awvalid), .mst2_awready(slv_if[2].awready),
         .mst2_awaddr(slv_if[2].awaddr),   .mst2_awlen(slv_if[2].awlen),
@@ -249,7 +350,8 @@ module axi_crossbar_tb;
         .mst2_rid(slv_if[2].rid),         .mst2_rresp(slv_if[2].rresp),
         .mst2_rdata(slv_if[2].rdata),     .mst2_rlast(slv_if[2].rlast),
         .mst2_ruser(1'b0),
-        // Slave 3 (slv_if[3])
+
+        // 【Slave 3 端口连接】
         .mst3_aclk(aclk), .mst3_aresetn(aresetn), .mst3_srst(srst),
         .mst3_awvalid(slv_if[3].awvalid), .mst3_awready(slv_if[3].awready),
         .mst3_awaddr(slv_if[3].awaddr),   .mst3_awlen(slv_if[3].awlen),
@@ -278,39 +380,74 @@ module axi_crossbar_tb;
     );
 
     //--------------------------------------------------------------------------
-    // UVM config_db
+    // UVM config_db 配置 (UVM Configuration Database)
     //--------------------------------------------------------------------------
+    // 【config_db 说明】
+    // uvm_config_db 是 UVM 的配置数据库机制，用于在组件之间传递配置信息。
+    // 这里使用它将 virtual interface 传递给 UVM 组件：
+    //   - set() 函数：将数据存入 config_db
+    //   - 参数1 (null)：使用全局数据库（非特定组件）
+    //   - 参数2 ("*.mst_drv0")：通配符路径，匹配所有层次下的 mst_drv0 组件
+    //   - 参数3 ("vif")：配置项名称
+    //   - 参数4 (mst_if[0])：配置项值（virtual interface）
+    //
+    // 【Virtual Interface 说明】
+    // virtual interface 是 SystemVerilog 中指向 interface 实例的指针
+    // UVM 组件（class）不能直接例化或访问 interface（module），
+    // 但可以通过 virtual interface 间接驱动/采样接口信号
+    // 这是连接 UVM 世界和 DUT 世界的桥梁
     initial begin
+        // 将 mst_if[0] 传递给 Master Driver 0 和 Master Monitor 0
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv0", "vif", mst_if[0]);
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon0", "vif", mst_if[0]);
+        // 将 slv_if[0] 传递给 Slave Driver 0 和 Slave Monitor 0
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv0", "vif", slv_if[0]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon0", "vif", slv_if[0]);
+
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv1", "vif", mst_if[1]);
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon1", "vif", mst_if[1]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv1", "vif", slv_if[1]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon1", "vif", slv_if[1]);
+
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv2", "vif", mst_if[2]);
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon2", "vif", mst_if[2]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv2", "vif", slv_if[2]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon2", "vif", slv_if[2]);
+
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv3", "vif", mst_if[3]);
         uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon3", "vif", mst_if[3]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv3", "vif", slv_if[3]);
         uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon3", "vif", slv_if[3]);
+
+        // 【启动 UVM 测试】
+        // run_test() 是 UVM 的入口函数，它会：
+        //   1. 根据 +UVM_TESTNAME 命令行参数创建测试实例
+        //   2. 如果没有指定，使用默认的 "axi_basic_test"
+        //   3. 执行 UVM 的 phase 机制（build → connect → run → check → report）
         run_test("axi_basic_test");
     end
 
     //--------------------------------------------------------------------------
-    // Timeout
+    // 超时机制 (Timeout Mechanism)
     //--------------------------------------------------------------------------
+    // 【超时说明】
+    // 如果仿真运行超过 50ms（50,000,000ns）仍未结束，强制终止
+    // 这是为了防止测试卡死导致仿真无限运行
+    // uvm_fatal 会打印错误信息并终止仿真
     initial begin
         #50000000;
         `uvm_fatal("TIMEOUT", "Simulation timeout")
     end
 
     //--------------------------------------------------------------------------
-    // Waveform
+    // 波形转储 (Waveform Dump)
     //--------------------------------------------------------------------------
+    // 【波形说明】
+    // $dumpfile: 指定波形文件名（VCD 格式）
+    // $dumpvars: 指定要记录的信号范围
+    //   - 0: 记录所有层次的信号
+    //   - axi_crossbar_tb: 从 testbench 顶层开始记录
+    // 生成的 .vcd 文件可以用 GTKWave 等工具查看
     initial begin
         $dumpfile("axi_crossbar_tb.vcd");
         $dumpvars(0, axi_crossbar_tb);

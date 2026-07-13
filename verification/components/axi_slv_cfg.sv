@@ -1,44 +1,107 @@
 //==========================================================================
-// Slave Configuration (Error Injection & Backpressure)
+// Slave Configuration - 从设备配置类 (Error Injection & Backpressure)
+//==========================================================================
+// 【文件功能说明】
+// 本文件定义了 AXI Slave Driver 的配置对象，用于控制：
+//   1. 错误注入(Error Injection)：模拟从设备返回错误响应
+//   2. 延迟控制(Latency Control)：模拟从设备的处理延迟
+//   3. 背压(Backpressure)：模拟从设备的反压机制
+//
+// 【验证方法学知识点】
+// 在 UVM 验证中，配置对象(config object)是一种常见的设计模式。
+// 通过将可配置的参数封装在一个对象中，可以在 test 层面灵活地控制
+// 验证组件的行为，而无需修改组件代码。
+// 例如：可以在某个 test 中设置 err_pct=50 来大量注入错误，
+// 在另一个 test 中设置 bp_awready_pct=80 来测试背压处理。
+//
+// 【UVM 知识点】
+// uvm_object 是 UVM 中最基本的类，所有 UVM 数据类(如 sequence_item,
+// config, transaction)都继承自 uvm_object。与 uvm_component 不同，
+// uvm_object 没有固定的层次位置，可以自由创建和销毁。
 //==========================================================================
 class axi_slv_cfg extends uvm_object;
+
+    // 【工厂注册】将类注册到 UVM 工厂
     `uvm_object_utils(axi_slv_cfg)
 
-    // Error injection
-    int unsigned err_pct = 0;          // Error response probability (0-100)
-    bit [1:0]    err_resp = 2'b10;     // SLVERR=2'b10, DECERR=2'b11
+    // ================================================================
+    // 【错误注入参数】
+    // ================================================================
+    int unsigned err_pct = 0;          // 错误响应概率 (0~100%)
+                                       // 0 = 不注入错误 (永远返回 OKAY)
+                                       // 100 = 总是注入错误
+                                       // 50 = 50%概率返回错误响应
+    bit [1:0]    err_resp = 2'b10;     // 错误响应类型
+                                       // 2'b10 = SLVERR (Slave Error，从设备错误)
+                                       //         例如：访问了只读寄存器、地址越界等
+                                       // 2'b11 = DECERR (Decode Error，解码错误)
+                                       //         例如：地址不在任何从设备范围内
 
-    // Latency control
-    int unsigned delay_min = 0;        // Minimum delay cycles
-    int unsigned delay_max = 0;        // Maximum delay cycles
+    // ================================================================
+    // 【延迟控制参数】
+    // ================================================================
+    // 模拟真实硬件中从设备的处理延迟
+    int unsigned delay_min = 0;        // 最小延迟时钟周期数
+    int unsigned delay_max = 0;        // 最大延迟时钟周期数
+                                       // 例如：delay_min=2, delay_max=10 表示
+                                       // 从设备会在 2~10 个时钟周期后才响应
 
-    // Backpressure
-    int unsigned bp_awready_pct = 0;   // AW channel backpressure (0-100)
-    int unsigned bp_wready_pct = 0;    // W channel backpressure
-    int unsigned bp_arready_pct = 0;   // AR channel backpressure
+    // ================================================================
+    // 【背压(Backpressure)参数】
+    // ================================================================
+    // 背压是指从设备通过拉低 ready 信号来通知主设备"我还没准备好，请等待"。
+    // 这是 AXI 握手协议的核心机制，确保数据不会丢失。
+    // 设置不同的百分比可以模拟从设备繁忙时的场景。
+    int unsigned bp_awready_pct = 0;   // AW通道背压概率 (0~100%)
+                                       // 控制写地址通道的 awready 信号
+    int unsigned bp_wready_pct = 0;    // W通道背压概率 (0~100%)
+                                       // 控制写数据通道的 wready 信号
+    int unsigned bp_arready_pct = 0;   // AR通道背压概率 (0~100%)
+                                       // 控制读地址通道的 arready 信号
 
+    // ================================================================
+    // 【构造函数】
+    // ================================================================
     function new(string name = "axi_slv_cfg");
         super.new(name);
     endfunction
 
-    // Randomize delay
+    // ================================================================
+    // 【函数】get_delay - 获取随机延迟值
+    // ================================================================
+    // 返回一个 [delay_min, delay_max] 范围内的随机延迟值。
+    // $urandom_range(a, b) 是 SystemVerilog 内置函数，返回 [a, b] 范围内的随机整数。
+    // 当 delay_max 为 0 时，表示不需要延迟，直接返回 0。
     function int get_delay();
-        if (delay_max == 0) return 0;
-        return $urandom_range(delay_min, delay_max);
+        if (delay_max == 0) return 0;       // 无需延迟
+        return $urandom_range(delay_min, delay_max);  // 返回随机延迟
     endfunction
 
-    // Check if should inject error
+    // ================================================================
+    // 【函数】should_error - 判断是否应注入错误
+    // ================================================================
+    // 根据 err_pct 概率返回 1(应注入错误)或 0(正常响应)。
+    // 工作原理：生成 0~99 的随机数，如果 < err_pct 则返回 true。
+    // 例如 err_pct=30 时，约 30% 的事务会被注入错误。
     function bit should_error();
         return ($urandom_range(0, 99) < err_pct);
     endfunction
 
-    // Check if should apply backpressure
+    // ================================================================
+    // 【函数】should_bp - 判断是否应施加背压
+    // ================================================================
+    // 参数 channel 指定通道编号：
+    //   0 = AW通道 (写地址)
+    //   1 = W通道  (写数据)
+    //   2 = AR通道 (读地址)
+    // 返回 1 表示应该拉低 ready (施加背压)，0 表示正常响应。
+    // 通过 case 语句选择对应通道的背压概率进行判断。
     function bit should_bp(int channel);
         case (channel)
-            0: return ($urandom_range(0, 99) < bp_awready_pct);
-            1: return ($urandom_range(0, 99) < bp_wready_pct);
-            2: return ($urandom_range(0, 99) < bp_arready_pct);
-            default: return 0;
+            0: return ($urandom_range(0, 99) < bp_awready_pct);  // AW通道
+            1: return ($urandom_range(0, 99) < bp_wready_pct);   // W通道
+            2: return ($urandom_range(0, 99) < bp_arready_pct);  // AR通道
+            default: return 0;                                    // 未知通道，不背压
         endcase
     endfunction
 endclass
