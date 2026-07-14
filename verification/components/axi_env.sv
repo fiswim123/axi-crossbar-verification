@@ -104,6 +104,14 @@ class axi_env extends uvm_env;
 
         // 循环创建4组主机/从机的 agent
         for (int i = 0; i < 4; i++) begin
+            // 设置 master_id（用于路由验证）
+            uvm_config_db#(int)::set(
+                this,
+                $sformatf("mst_agent%0d", i),
+                "master_id",
+                i
+            );
+
             // 创建主机代理
             // Agent 内部会自动创建 driver、sequencer、monitor
             mst_agent[i] = axi_mst_agent::type_id::create(
@@ -122,6 +130,14 @@ class axi_env extends uvm_env;
                 $sformatf("slv_agent%0d", i),
                 "cfg",
                 slv_cfg[i]
+            );
+
+            // 设置 slave_id（用于路由验证）
+            uvm_config_db#(int)::set(
+                this,
+                $sformatf("slv_agent%0d", i),
+                "slave_id",
+                i
             );
 
             // 创建从机代理
@@ -148,13 +164,14 @@ class axi_env extends uvm_env;
         for (int i = 0; i < 4; i++) begin
             // 将主机侧监视器的analysis port连接到scoreboard的analysis imp
             // 当monitor广播事务时，scoreboard的write()会被调用
-            // 只连接主机侧监视器，不连接从机侧监视器
-            // 原因：同一笔事务如果同时从主机侧和从机侧采集，会导致重复计数
-            mst_agent[i].monitor.ap.connect(scbd.imp);
+            mst_agent[i].monitor.ap.connect(scbd.mst_imp);
+
+            // 将从机侧监视器的analysis port连接到scoreboard
+            // 用于路由验证：检查事务是否到达正确的Slave
+            slv_agent[i].monitor.ap.connect(scbd.slv_imp);
 
             // 将主机侧监视器的analysis port连接到coverage的analysis_export
             // uvm_subscriber的analysis_export名称是固定的
-            // 同样只连接主机侧监视器
             mst_agent[i].monitor.ap.connect(cov.analysis_export);
         end
     endfunction

@@ -59,6 +59,13 @@ class axi_txn extends uvm_sequence_item;
     // 当 slave driver 注入错误响应时，scoreboard 需要知道该事务是否应被预期为错误
     bit expect_err = 0;
 
+    // 【来源标识】供 scoreboard 路由验证使用
+    // 标识该事务来自哪个 Master 或 Slave（0~3）
+    // Master Monitor 采集时填入 master_id
+    // Slave Monitor 采集时填入 slave_id
+    int source_id = -1;        // 来源 ID（Master 或 Slave 的编号）
+    bit is_slave_side = 0;     // 标识是从 Slave 侧采集的（1=Slave侧, 0=Master侧）
+
     // ================================================================
     // 【约束块】c_basic - 基本约束
     // ================================================================

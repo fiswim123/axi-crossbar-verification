@@ -23,6 +23,13 @@ class axi_monitor extends uvm_monitor;
     // 当monitor调用ap.write(txn)时，所有连接到该port的组件都会收到事务
     uvm_analysis_port #(axi_txn) ap;
 
+    // 【来源标识】用于路由验证
+    // source_id: 标识这个 Monitor 是哪个 Master 或 Slave（0~3）
+    // is_slave:  标识这是 Slave 侧的 Monitor（1）还是 Master 侧的 Monitor（0）
+    // 这两个字段会在 build_phase 中从 config_db 获取
+    int source_id = 0;
+    bit is_slave = 0;
+
     // 构造函数
     // name: 组件实例名称（由父组件在create时指定）
     // parent: 父组件句柄（通常是env或test）
@@ -50,6 +57,12 @@ class axi_monitor extends uvm_monitor;
         // 如果获取失败（顶层没有配置该vif），则用uvm_fatal终止仿真
         if (!uvm_config_db#(virtual axi_if)::get(this, "", "vif", vif))
             `uvm_fatal("NOVIF", $sformatf("No vif for %s", get_full_name()))
+
+        // 获取来源标识（用于路由验证）
+        // source_id: 标识这个 Monitor 是哪个 Master 或 Slave（0~3）
+        // is_slave:  标识这是 Slave 侧的 Monitor（1）还是 Master 侧的 Monitor（0）
+        uvm_config_db#(int)::get(this, "", "source_id", source_id);
+        uvm_config_db#(bit)::get(this, "", "is_slave", is_slave);
     endfunction
 
     // run_phase：UVM运行阶段
@@ -86,6 +99,10 @@ class axi_monitor extends uvm_monitor;
 
             // 设置事务类型为写操作
             txn.kind = axi_txn::WRITE;
+
+            // 设置来源标识（用于路由验证）
+            txn.source_id = source_id;
+            txn.is_slave_side = is_slave;
 
             // 从AW通道信号中采样地址和控制信息
             // awaddr: 写地址    awid: 写事务ID（用于乱序和交织）
@@ -140,6 +157,10 @@ class axi_monitor extends uvm_monitor;
 
             // 设置事务类型为读操作
             txn.kind = axi_txn::READ;
+
+            // 设置来源标识（用于路由验证）
+            txn.source_id = source_id;
+            txn.is_slave_side = is_slave;
 
             // 从AR通道信号中采样读地址和控制信息
             // araddr: 读地址    arid: 读事务ID

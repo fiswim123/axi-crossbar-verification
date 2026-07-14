@@ -397,27 +397,19 @@ module axi_crossbar_tb;
     // 但可以通过 virtual interface 间接驱动/采样接口信号
     // 这是连接 UVM 世界和 DUT 世界的桥梁
     initial begin
-        // 将 mst_if[0] 传递给 Master Driver 0 和 Master Monitor 0
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv0", "vif", mst_if[0]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon0", "vif", mst_if[0]);
-        // 将 slv_if[0] 传递给 Slave Driver 0 和 Slave Monitor 0
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv0", "vif", slv_if[0]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon0", "vif", slv_if[0]);
+        // 将 mst_if[0] 传递给 Master Agent 0（内部的 driver 和 monitor）
+        uvm_config_db#(virtual axi_if)::set(null, "*.mst_agent0", "vif", mst_if[0]);
+        // 将 slv_if[0] 传递给 Slave Agent 0（内部的 driver 和 monitor）
+        uvm_config_db#(virtual axi_if)::set(null, "*.slv_agent0", "vif", slv_if[0]);
 
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv1", "vif", mst_if[1]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon1", "vif", mst_if[1]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv1", "vif", slv_if[1]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon1", "vif", slv_if[1]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.mst_agent1", "vif", mst_if[1]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.slv_agent1", "vif", slv_if[1]);
 
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv2", "vif", mst_if[2]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon2", "vif", mst_if[2]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv2", "vif", slv_if[2]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon2", "vif", slv_if[2]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.mst_agent2", "vif", mst_if[2]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.slv_agent2", "vif", slv_if[2]);
 
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_drv3", "vif", mst_if[3]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.mst_mon3", "vif", mst_if[3]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_drv3", "vif", slv_if[3]);
-        uvm_config_db#(virtual axi_if)::set(null, "*.slv_mon3", "vif", slv_if[3]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.mst_agent3", "vif", mst_if[3]);
+        uvm_config_db#(virtual axi_if)::set(null, "*.slv_agent3", "vif", slv_if[3]);
 
         // 【启动 UVM 测试】
         // run_test() 是 UVM 的入口函数，它会：

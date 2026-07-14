@@ -61,6 +61,11 @@ class axi_mst_agent extends uvm_agent;
     // vif: 虚拟接口，指向 DUT 的 AXI 接口
     virtual axi_if vif;
 
+    // master_id: 标识这个 Agent 是哪个 Master（0~3）
+    // 在 env 创建时通过 config_db 设置
+    // 用于 Monitor 的来源标识，支持路由验证
+    int master_id = 0;
+
     // ================================================================
     // 【构造函数】
     // ================================================================
@@ -80,10 +85,18 @@ class axi_mst_agent extends uvm_agent;
         if (!uvm_config_db#(virtual axi_if)::get(this, "", "vif", vif))
             `uvm_fatal("NOVIF", $sformatf("No vif for %s", get_full_name()))
 
+        // 从 config_db 获取 master_id（用于路由验证）
+        uvm_config_db#(int)::get(this, "", "master_id", master_id);
+
         // 将虚拟接口传递给子组件
         // 使用相对路径 "" 表示从当前位置开始查找
         uvm_config_db#(virtual axi_if)::set(this, "driver", "vif", vif);
         uvm_config_db#(virtual axi_if)::set(this, "monitor", "vif", vif);
+
+        // 设置 Monitor 的来源标识（用于路由验证）
+        // Master Monitor: is_slave=0, source_id=master_id
+        uvm_config_db#(int)::set(this, "monitor", "source_id", master_id);
+        uvm_config_db#(bit)::set(this, "monitor", "is_slave", 0);
 
         // 创建 monitor (active 和 passive 模式都需要)
         monitor = axi_monitor::type_id::create("monitor", this);

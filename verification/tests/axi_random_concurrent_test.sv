@@ -59,9 +59,9 @@ class axi_random_concurrent_test extends axi_base_test;
             seq.s_count = 5;
 
             // 启动序列：将序列发送到第 i 个 Master 的 sequencer 上执行
-            // env.sqr[i] 是环境（env）中第 i 个 Master 的 sequencer
+            // env.mst_agent[i].sequencer 是环境（env）中第 i 个 Master 的 sequencer
             // start() 会阻塞直到序列中的所有 item 都发送完毕
-            seq.start(env.sqr[i]);
+            seq.start(env.mst_agent[i].sequencer);
         end
 
         // 等待 200 个时间单位，确保所有 DUT 内部流水线清空、响应全部返回

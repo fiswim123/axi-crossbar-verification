@@ -99,6 +99,8 @@ package axi_pkg;
     `include "components/axi_monitor.sv"
     `include "components/axi_scoreboard.sv"
     `include "components/axi_coverage.sv"
+    `include "components/axi_mst_agent.sv"
+    `include "components/axi_slv_agent.sv"
     `include "components/axi_env.sv"
 
     //==========================================================================

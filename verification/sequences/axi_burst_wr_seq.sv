@@ -30,7 +30,7 @@ class axi_burst_wr_seq extends uvm_sequence #(axi_txn);
     // 例如 s_len=3 表示一次 burst 传输 4 拍数据
     bit [7:0]  s_len;
 
-    function new(string name = axi_burst_wr_seq);
+    function new(string name = "axi_burst_wr_seq");
         super.new(name);
     endfunction
 
