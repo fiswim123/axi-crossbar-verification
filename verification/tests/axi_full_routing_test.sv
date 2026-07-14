@@ -45,47 +45,47 @@ class axi_full_routing_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // === MST1 → SLV1, SLV2, SLV3 ===
         // Master 1 访问 Slave 1（地址 0x1000）
         seq = axi_full_routing_seq::type_id::create("m1_s1");
         seq.s_addr = 16'h1000;    // 地址 0x1000 映射到 SLV1
         seq.s_id = 8'h20;         // AXI ID = 0x20（MST1 的 ID 前缀）
-        seq.start(env.sqr[1]);    // 在 Master 1 的 sequencer 上执行
+        seq.start(env.mst_agent[1].sequencer);    // 在 Master 1 的 sequencer 上执行
 
         // Master 1 访问 Slave 2（地址 0x2000）
         seq = axi_full_routing_seq::type_id::create("m1_s2");
         seq.s_addr = 16'h2000;    // 地址 0x2000 映射到 SLV2
         seq.s_id = 8'h20;
-        seq.start(env.sqr[1]);
+        seq.start(env.mst_agent[1].sequencer);
 
         // Master 1 访问 Slave 3（地址 0x3000）
         seq = axi_full_routing_seq::type_id::create("m1_s3");
         seq.s_addr = 16'h3000;    // 地址 0x3000 映射到 SLV3
         seq.s_id = 8'h20;
-        seq.start(env.sqr[1]);
+        seq.start(env.mst_agent[1].sequencer);
 
         // === MST2 → SLV0, SLV2, SLV3 ===
         // Master 2 访问 Slave 0（地址 0x0000）
         seq = axi_full_routing_seq::type_id::create("m2_s0");
         seq.s_addr = 16'h0000;    // 地址 0x0000 映射到 SLV0
         seq.s_id = 8'h30;         // AXI ID = 0x30（MST2 的 ID 前缀）
-        seq.start(env.sqr[2]);    // 在 Master 2 的 sequencer 上执行
+        seq.start(env.mst_agent[2].sequencer);    // 在 Master 2 的 sequencer 上执行
 
         // Master 2 访问 Slave 2（地址 0x2000）
         seq = axi_full_routing_seq::type_id::create("m2_s2");
         seq.s_addr = 16'h2000;    // 地址 0x2000 映射到 SLV2
         seq.s_id = 8'h30;
-        seq.start(env.sqr[2]);
+        seq.start(env.mst_agent[2].sequencer);
 
         // Master 2 访问 Slave 3（地址 0x3000）
         seq = axi_full_routing_seq::type_id::create("m2_s3");
         seq.s_addr = 16'h3000;    // 地址 0x3000 映射到 SLV3
         seq.s_id = 8'h30;
-        seq.start(env.sqr[2]);
+        seq.start(env.mst_agent[2].sequencer);
 
         // 等待所有响应返回
         #200;

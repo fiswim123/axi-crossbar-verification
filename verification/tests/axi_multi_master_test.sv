@@ -62,12 +62,12 @@ class axi_multi_master_test extends axi_base_test;
         // 等待复位释放: 监测 aresetn 信号的上升沿
         // aresetn是AXI协议的复位信号，低电平有效
         // 上升沿表示复位结束，系统进入正常工作状态
-        // env.mst_drv[0].vif 引用Master驱动器0的虚拟接口(通过env层次访问)
-        @(posedge env.mst_drv[0].vif.aresetn);
+        // env.mst_agent[0].driver.vif 引用Master驱动器0的虚拟接口(通过env层次访问)
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 额外等待5个时钟周期，让系统稳定后再发送激励
         // 这是一个常用的工程实践，避免复位后立即操作带来的时序问题
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // fork-join块: 创建4个并行执行的线程
         // fork: 启动多个并行线程
@@ -90,10 +90,10 @@ class axi_multi_master_test extends axi_base_test;
                 seq.s_id   = 8'h10;
 
                 // seq.start(): 在指定的sequencer上启动sequence
-                // env.sqr[0] 是Master 0对应的sequencer
+                // env.mst_agent[0].sequencer 是Master 0对应的sequencer
                 // sequencer负责将sequence item发送给driver
                 // driver再将事务转化为AXI总线信号
-                seq.start(env.sqr[0]);
+                seq.start(env.mst_agent[0].sequencer);
             end
 
             // === Master 1 写操作线程 ===
@@ -103,7 +103,7 @@ class axi_multi_master_test extends axi_base_test;
                 seq.s_addr = 16'h1000;
                 seq.s_data = 32'hBBBBBBBB;
                 seq.s_id   = 8'h20;
-                seq.start(env.sqr[1]);  // 在Master 1的sequencer上执行
+                seq.start(env.mst_agent[1].sequencer);  // 在Master 1的sequencer上执行
             end
 
             // === Master 2 写操作线程 ===
@@ -113,7 +113,7 @@ class axi_multi_master_test extends axi_base_test;
                 seq.s_addr = 16'h2000;
                 seq.s_data = 32'hCCCCCCCC;
                 seq.s_id   = 8'h30;
-                seq.start(env.sqr[2]);  // 在Master 2的sequencer上执行
+                seq.start(env.mst_agent[2].sequencer);  // 在Master 2的sequencer上执行
             end
 
             // === Master 3 写操作线程 ===
@@ -123,7 +123,7 @@ class axi_multi_master_test extends axi_base_test;
                 seq.s_addr = 16'h3000;
                 seq.s_data = 32'hDDDDDDDD;
                 seq.s_id   = 8'h40;
-                seq.start(env.sqr[3]);  // 在Master 3的sequencer上执行
+                seq.start(env.mst_agent[3].sequencer);  // 在Master 3的sequencer上执行
             end
         join  // 等待所有4个Master的写操作都完成
 

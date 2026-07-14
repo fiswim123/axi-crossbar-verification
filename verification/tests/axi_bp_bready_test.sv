@@ -49,10 +49,10 @@ class axi_bp_bready_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 【配置 slave 响应延迟，制造 B 通道反压】
         // 遍历所有 4 个 slave
@@ -86,7 +86,7 @@ class axi_bp_bready_test extends axi_base_test;
             seq.s_len  = 3;  // 4-beat burst
 
             // 启动序列，绑定到 master 0 的 sequencer
-            seq.start(env.sqr[0]);
+            seq.start(env.mst_agent[0].sequencer);
         end
 
         // 等待所有事务完成

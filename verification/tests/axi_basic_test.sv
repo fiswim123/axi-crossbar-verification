@@ -54,14 +54,14 @@ class axi_basic_test extends axi_base_test;
         // 【等待复位释放】等待 aresetn 信号的上升沿（复位结束）
         // aresetn 是 AXI 的全局复位信号，低有效
         // 上升沿表示复位释放，系统开始正常工作
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 【额外等待】复位释放后再等 5 个时钟周期
         // 确保所有信号稳定后再开始发送事务
-        // env.mst_drv[0]: master 0 的 driver
+        // env.mst_agent[0].driver: master 0 的 driver
         // vif: virtual interface，driver 通过它访问 DUT 的信号
         // aclk: AXI 时钟信号
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ============================================================
         // T001: 写测试 — Master 0 依次向 4 个 Slave 写入数据
@@ -85,10 +85,10 @@ class axi_basic_test extends axi_base_test;
             wr_seq.s_data = 32'hDEAD0000 + s;
             wr_seq.s_id   = 8'h10;
 
-            // 【启动 sequence】在 sequencer env.sqr[0] 上启动
+            // 【启动 sequence】在 sequencer env.mst_agent[0].sequencer 上启动
             // start() 是阻塞调用，会等待 sequence 执行完毕后才返回
-            // env.sqr[0] 是 master 0 对应的 sequencer
-            wr_seq.start(env.sqr[0]);
+            // env.mst_agent[0].sequencer 是 master 0 对应的 sequencer
+            wr_seq.start(env.mst_agent[0].sequencer);
         end
 
         // 【等待】让写事务有时间完成传输
@@ -109,7 +109,7 @@ class axi_basic_test extends axi_base_test;
             rd_seq.s_id   = 8'h10;
 
             // 【启动读 sequence】
-            rd_seq.start(env.sqr[0]);
+            rd_seq.start(env.mst_agent[0].sequencer);
         end
 
         // 【等待】让读事务有时间完成

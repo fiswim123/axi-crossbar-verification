@@ -42,9 +42,9 @@ class axi_reset_recovery_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // T082: 执行 3 次 reset 循环
         // cycle 变量表示当前是第几次复位循环（0, 1, 2）
@@ -70,7 +70,7 @@ class axi_reset_recovery_test extends axi_base_test;
                 seq.s_id   = 8'h10;
 
                 // 在 Master 0 上执行写事务
-                seq.start(env.sqr[0]);
+                seq.start(env.mst_agent[0].sequencer);
             end
 
             // 写事务完成后等待 50 个时间单位
@@ -78,16 +78,16 @@ class axi_reset_recovery_test extends axi_base_test;
 
             // === 复位阶段 ===
             // 拉低复位信号（aresetn = 0 表示复位有效）
-            env.mst_drv[0].vif.aresetn <= 0;
+            env.mst_agent[0].driver.vif.aresetn <= 0;
 
             // 保持复位 10 个时钟周期
-            repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+            repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
 
             // 释放复位（aresetn = 1 表示正常工作）
-            env.mst_drv[0].vif.aresetn <= 1;
+            env.mst_agent[0].driver.vif.aresetn <= 1;
 
             // 等待 20 个时钟周期让 DUT 从复位中完全恢复
-            repeat(20) @(posedge env.mst_drv[0].vif.aclk);
+            repeat(20) @(posedge env.mst_agent[0].driver.vif.aclk);
         end
 
         // === 最终验证阶段 ===
@@ -98,7 +98,7 @@ class axi_reset_recovery_test extends axi_base_test;
             seq.s_addr = i * 4;               // 地址 0, 4, 8, 12
             seq.s_data = 32'hA500_0010 + i;   // 数据标识为 final 阶段
             seq.s_id   = 8'h10;
-            seq.start(env.sqr[0]);
+            seq.start(env.mst_agent[0].sequencer);
         end
 
         // 等待所有响应返回

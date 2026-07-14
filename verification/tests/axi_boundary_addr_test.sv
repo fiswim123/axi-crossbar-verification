@@ -52,10 +52,10 @@ class axi_boundary_addr_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待5个时钟周期
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 创建边界sequence实例
         seq = axi_boundary_seq::type_id::create("seq");
@@ -68,7 +68,7 @@ class axi_boundary_addr_test extends axi_base_test;
 
         // 在Master 0的sequencer上启动边界测试
         // sequence会自动测试所有边界地址条件
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待200ns，让所有边界测试事务完成
         #200;

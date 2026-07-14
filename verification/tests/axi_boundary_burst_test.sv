@@ -53,12 +53,12 @@ class axi_boundary_burst_test extends axi_base_test;
         // 等待复位释放（aresetn 从 0 变为 1）
         // aresetn 是 AXI 的异步复位信号，低电平有效
         // 在复位期间不能发送事务，必须等到复位结束
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 复位释放后再等待 5 个时钟周期
         // 这是为了让 DUT（被测设计）内部状态稳定下来
         // 确保所有寄存器和状态机都已进入正常工作状态
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 【创建序列实例】
         // type_id::create 是 UVM 工厂的创建方法
@@ -78,10 +78,10 @@ class axi_boundary_burst_test extends axi_base_test;
 
         // 【启动序列】
         // seq.start() 将序列绑定到指定的 sequencer 上开始执行
-        // env.sqr[0] 是 master 0 对应的 sequencer
+        // env.mst_agent[0].sequencer 是 master 0 对应的 sequencer
         // sequencer 负责将序列中的事务项（sequence item）发送给 driver
         // driver 再将事务转换为 AXI 总线信号驱动到 DUT
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待 200 个时间单位
         // 给 DUT 足够的时间完成所有事务的处理和响应

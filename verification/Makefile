@@ -34,15 +34,15 @@ SRC_FILES = \
 ###############################################################################
 
 TB_FILES = \
-    env/axi_if.sv \
-    env/axi_pkg.sv \
+    infra/axi_if.sv \
+    infra/axi_pkg.sv \
     tb/axi_crossbar_tb.sv
 
 ###############################################################################
 # Options
 ###############################################################################
 
-VCS_OPTS     = -sverilog -full64 +incdir+$(SRC_DIR) +incdir+env \
+VCS_OPTS     = -sverilog -full64 +incdir+$(SRC_DIR) +incdir+infra \
                +incdir+components +incdir+sequences +incdir+tests \
                -ntb_opts uvm-1.2 -timescale=1ns/1ps \
                -cm line+cond+fsm+tgl+branch -cm_dir ./cov_db

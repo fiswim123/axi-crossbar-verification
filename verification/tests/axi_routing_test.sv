@@ -41,10 +41,10 @@ class axi_routing_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 【等待复位释放】
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 【额外等待 5 个时钟周期】确保系统稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ============================================================
         // T010-T013: Master 0 顺序访问所有 4 个 Slave
@@ -66,7 +66,7 @@ class axi_routing_test extends axi_base_test;
 
             // 【在 master 0 的 sequencer 上启动】
             // start() 是阻塞调用，会等待完成后再继续下一次循环
-            seq.start(env.sqr[0]);
+            seq.start(env.mst_agent[0].sequencer);
         end
 
         // ============================================================
@@ -89,7 +89,7 @@ class axi_routing_test extends axi_base_test;
                 seq.s_id   = 8'h20;
                 // 【在 master 1 的 sequencer 上启动】
                 // 不同 master 使用不同的 sequencer
-                seq.start(env.sqr[1]);
+                seq.start(env.mst_agent[1].sequencer);
             end
             // 【Master 2 → Slave 1】
             // 地址 0x1000 映射到 Slave 1
@@ -99,7 +99,7 @@ class axi_routing_test extends axi_base_test;
                 seq.s_data = 32'h00000201;
                 seq.s_id   = 8'h30;
                 // 【在 master 2 的 sequencer 上启动】
-                seq.start(env.sqr[2]);
+                seq.start(env.mst_agent[2].sequencer);
             end
             // 【Master 3 → Slave 3】
             // 地址 0x3000 映射到 Slave 3
@@ -109,7 +109,7 @@ class axi_routing_test extends axi_base_test;
                 seq.s_data = 32'h00000303;
                 seq.s_id   = 8'h40;
                 // 【在 master 3 的 sequencer 上启动】
-                seq.start(env.sqr[3]);
+                seq.start(env.mst_agent[3].sequencer);
             end
         join  // 等待 3 个并行事务全部完成
 

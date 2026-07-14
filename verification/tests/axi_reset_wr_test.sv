@@ -40,9 +40,9 @@ class axi_reset_wr_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // T080: 写事务进行中触发 reset
         // fork-join 让写事务和复位控制并行执行
@@ -55,30 +55,30 @@ class axi_reset_wr_test extends axi_base_test;
                 seq.s_data = 32'hDEAD_BEEF;   // 写入数据（特殊值便于波形识别）
                 seq.s_id   = 8'h10;           // AXI 事务 ID
                 // start() 会阻塞直到序列完成（但会被复位打断）
-                seq.start(env.sqr[0]);
+                seq.start(env.mst_agent[0].sequencer);
             end
             begin
                 // 任务B：test 控制 reset 时序
                 // 等待 20 个时钟周期（此时写事务正在进行中）
-                repeat(20) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(20) @(posedge env.mst_agent[0].driver.vif.aclk);
 
                 // 拉低复位信号（aresetn = 0 表示复位有效）
                 // 使用 <= 非阻塞赋值，因为要驱动接口信号
-                env.mst_drv[0].vif.aresetn <= 0;
+                env.mst_agent[0].driver.vif.aresetn <= 0;
 
                 // 保持复位 10 个时钟周期
-                repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
 
                 // 释放复位（aresetn = 1 表示正常工作）
-                env.mst_drv[0].vif.aresetn <= 1;
+                env.mst_agent[0].driver.vif.aresetn <= 1;
 
                 // 等待 10 个时钟周期让 DUT 从复位中恢复
-                repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
             end
         join
 
         // 等待 reset 恢复：给 DUT 足够时间清理内部状态
-        repeat(50) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(50) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // T080 验证: reset 后应能正常工作
         // 再次发起写事务，确认 DUT 功能恢复正常
@@ -86,7 +86,7 @@ class axi_reset_wr_test extends axi_base_test;
         seq.s_addr = 16'h0000;          // 写入地址 0x0000
         seq.s_data = 32'hA500_0002;     // 写入新数据（与之前不同，便于区分）
         seq.s_id   = 8'h10;             // 相同的 AXI ID
-        seq.start(env.sqr[0]);          // 如果 DUT 未恢复正常，这里会卡住或报错
+        seq.start(env.mst_agent[0].sequencer);          // 如果 DUT 未恢复正常，这里会卡住或报错
 
         // 等待所有响应返回
         #200;

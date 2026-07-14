@@ -46,10 +46,10 @@ class axi_same_slave_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待5个时钟周期，系统稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 创建第一个sequence实例: 用于Master 0
         seq0 = axi_same_slave_seq::type_id::create("seq0");
@@ -69,11 +69,11 @@ class axi_same_slave_test extends axi_base_test;
         // 两个Master同时发起请求，制造竞争条件
         fork
             // Master 0: 通过sqr[0](sequencer 0)发送事务
-            seq0.start(env.sqr[0]);
+            seq0.start(env.mst_agent[0].sequencer);
             // Master 1: 通过sqr[1](sequencer 1)发送事务
             // 两个sequence同时start，但目标是同一个Slave
             // Crossbar必须决定先处理哪一个
-            seq1.start(env.sqr[1]);
+            seq1.start(env.mst_agent[1].sequencer);
         join  // 等待两个sequence都执行完毕
 
         // 等待200ns，确保所有事务和响应完成

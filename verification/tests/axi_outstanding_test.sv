@@ -42,8 +42,8 @@ class axi_outstanding_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 【等待复位释放 + 稳定】
-        @(posedge env.mst_drv[0].vif.aresetn);
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ============================================================
         // T030: 4 个 Outstanding 写事务 — 流水线发出
@@ -76,7 +76,7 @@ class axi_outstanding_test extends axi_base_test;
 
                 // 【在线程中启动 sequence】
                 // 每个线程独立执行 start()，互不阻塞
-                s.start(env.sqr[0]);
+                s.start(env.mst_agent[0].sequencer);
             join_none
         end
 

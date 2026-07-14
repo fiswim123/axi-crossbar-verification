@@ -41,10 +41,10 @@ class axi_boundary_ostd_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放，DUT 进入正常工作状态
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 复位后等待 5 个时钟周期，让 DUT 内部状态稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 通过 UVM 工厂创建序列实例
         seq = axi_max_ostd_seq::type_id::create("seq");
@@ -64,7 +64,7 @@ class axi_boundary_ostd_test extends axi_base_test;
 
         // 启动序列，绑定到 master 0 的 sequencer
         // sequencer 将事务项发送给 driver，driver 驱动 AXI 总线信号
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待 200 个时间单位
         // outstanding 事务需要时间来逐一完成

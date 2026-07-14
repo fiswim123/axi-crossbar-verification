@@ -57,10 +57,10 @@ class axi_err_recovery_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待5个时钟周期
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ==================== 阶段1: 错误注入 ====================
 
@@ -82,7 +82,7 @@ class axi_err_recovery_test extends axi_base_test;
         err_seq.s_count = 8;
 
         // 在Master 0的sequencer上启动批量错误注入
-        err_seq.start(env.sqr[0]);
+        err_seq.start(env.mst_agent[0].sequencer);
 
         // 等待100ns，让所有错误事务完成
         #100;
@@ -102,7 +102,7 @@ class axi_err_recovery_test extends axi_base_test;
         wr_seq.s_data = 32'hA500_0001;
 
         // 执行写操作
-        wr_seq.start(env.sqr[0]);
+        wr_seq.start(env.mst_agent[0].sequencer);
 
         // ==================== 阶段3: 读回验证 ====================
 
@@ -114,7 +114,7 @@ class axi_err_recovery_test extends axi_base_test;
 
         // 执行读操作
         // sequence内部或scoreboard会比较读出的数据与写入的数据
-        rd_seq.start(env.sqr[0]);
+        rd_seq.start(env.mst_agent[0].sequencer);
 
         // 等待200ns
         #200;

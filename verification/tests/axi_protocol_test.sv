@@ -42,8 +42,8 @@ class axi_protocol_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 【等待复位释放 + 稳定】
-        @(posedge env.mst_drv[0].vif.aresetn);
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ============================================================
         // T020: 单拍传输（len=0, 1 beat）
@@ -54,7 +54,7 @@ class axi_protocol_test extends axi_base_test;
         // s_id:   事务 ID
         // s_len:  突发长度 = 0，表示 1 拍传输
         seq.s_addr = 16'h0000; seq.s_id = 8'h10; seq.s_len = 0;
-        seq.start(env.sqr[0]);  // 在 master 0 的 sequencer 上启动
+        seq.start(env.mst_agent[0].sequencer);  // 在 master 0 的 sequencer 上启动
 
         // ============================================================
         // T021: 4 拍传输（len=3, 4 beats）
@@ -62,7 +62,7 @@ class axi_protocol_test extends axi_base_test;
         // 一次地址阶段后连续传输 4 个数据拍
         seq = axi_burst_wr_seq::type_id::create("len3");
         seq.s_addr = 16'h0100; seq.s_id = 8'h10; seq.s_len = 3;
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // ============================================================
         // T022: 8 拍传输（len=7, 8 beats）
@@ -70,7 +70,7 @@ class axi_protocol_test extends axi_base_test;
         // 一次地址阶段后连续传输 8 个数据拍
         seq = axi_burst_wr_seq::type_id::create("len7");
         seq.s_addr = 16'h0200; seq.s_id = 8'h10; seq.s_len = 7;
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // ============================================================
         // T023: 16 拍传输（len=15, 16 beats）
@@ -79,7 +79,7 @@ class axi_protocol_test extends axi_base_test;
         // 一次地址阶段后连续传输 16 个数据拍
         seq = axi_burst_wr_seq::type_id::create("len15");
         seq.s_addr = 16'h0300; seq.s_id = 8'h10; seq.s_len = 15;
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 【等待】让所有突发传输完成
         #200;

@@ -48,10 +48,10 @@ class axi_err_slverr_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待5个时钟周期
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // === 配置Slave 0的错误注入参数 ===
 
@@ -79,7 +79,7 @@ class axi_err_slverr_test extends axi_base_test;
         seq.s_expect_err = 1;
 
         // 在Master 0的sequencer上启动sequence
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待200ns
         #200;

@@ -40,12 +40,12 @@ class axi_random_concurrent_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放（aresetn 从 0 变为 1）
-        // env.mst_drv[0].vif 是 Master 驱动器的虚拟接口（virtual interface）
+        // env.mst_agent[0].driver.vif 是 Master 驱动器的虚拟接口（virtual interface）
         // aresetn 是 AXI 协议的复位信号，低电平有效
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 复位释放后再等 5 个时钟周期，确保 DUT 内部状态稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 依次在 4 个 Master 的 sequencer 上启动随机并发序列
         // for 循环变量 i 表示 Master 编号（0~3，对应 MST0~MST3）

@@ -50,10 +50,10 @@ class axi_interleave_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放(检测复位信号上升沿)
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待5个时钟周期，系统稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 创建交织sequence实例
         seq = axi_interleave_seq::type_id::create("seq");
@@ -66,7 +66,7 @@ class axi_interleave_test extends axi_base_test;
 
         // 在Master 0的sequencer上启动交织sequence
         // sequence内部会自动交替发送读写事务
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待200ns，让所有读写事务完成
         #200;

@@ -37,9 +37,9 @@ class axi_reset_rd_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // Pre-write: 先写入一笔数据到地址 0x0000
         // 读操作需要有可读的数据，所以先执行一次写操作
@@ -47,7 +47,7 @@ class axi_reset_rd_test extends axi_base_test;
         wr_seq.s_addr = 16'h0000;          // 写入地址
         wr_seq.s_data = 32'hA500_0003;     // 写入数据
         wr_seq.s_id   = 8'h10;             // AXI 事务 ID
-        wr_seq.start(env.sqr[0]);          // 在 Master 0 上执行
+        wr_seq.start(env.mst_agent[0].sequencer);          // 在 Master 0 上执行
 
         // 写完成后等待 50 个时间单位，确保数据已写入 Slave 存储
         #50;
@@ -61,29 +61,29 @@ class axi_reset_rd_test extends axi_base_test;
                 rd_seq.s_addr = 16'h0000;   // 读取地址（与刚写入的地址相同）
                 rd_seq.s_id   = 8'h10;      // AXI 事务 ID
                 // start() 会阻塞直到读数据返回（但会被复位打断）
-                rd_seq.start(env.sqr[0]);
+                rd_seq.start(env.mst_agent[0].sequencer);
             end
             begin
                 // 任务B：test 控制 reset 时序
                 // 等待 10 个时钟周期（此时读事务正在进行中）
-                repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
 
                 // 拉低复位信号
-                env.mst_drv[0].vif.aresetn <= 0;
+                env.mst_agent[0].driver.vif.aresetn <= 0;
 
                 // 保持复位 10 个时钟周期
-                repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
 
                 // 释放复位
-                env.mst_drv[0].vif.aresetn <= 1;
+                env.mst_agent[0].driver.vif.aresetn <= 1;
 
                 // 等待 10 个时钟周期让 DUT 从复位中恢复
-                repeat(10) @(posedge env.mst_drv[0].vif.aclk);
+                repeat(10) @(posedge env.mst_agent[0].driver.vif.aclk);
             end
         join
 
         // 等待 reset 恢复：给 DUT 足够时间清理内部状态
-        repeat(50) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(50) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // T081 验证: reset 后应能正常读写
         // 步骤1: 先写入新数据
@@ -91,14 +91,14 @@ class axi_reset_rd_test extends axi_base_test;
         wr_seq.s_addr = 16'h0000;          // 写入地址
         wr_seq.s_data = 32'hA500_0004;     // 新数据
         wr_seq.s_id   = 8'h10;
-        wr_seq.start(env.sqr[0]);
+        wr_seq.start(env.mst_agent[0].sequencer);
 
         // 步骤2: 读取刚才写入的数据
         // 如果 DUT 未恢复正常，读操作会失败或返回错误数据
         rd_seq = axi_rd_seq::type_id::create("rd_after_reset");
         rd_seq.s_addr = 16'h0000;          // 读取同一地址
         rd_seq.s_id   = 8'h10;
-        rd_seq.start(env.sqr[0]);
+        rd_seq.start(env.mst_agent[0].sequencer);
 
         // 等待所有响应返回
         #200;

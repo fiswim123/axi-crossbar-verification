@@ -46,8 +46,8 @@ class axi_burst_size_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 【等待复位释放 + 稳定】
-        @(posedge env.mst_drv[0].vif.aresetn);
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 【创建并配置 burst size sequence】
         seq = axi_burst_size_seq::type_id::create("seq");
@@ -58,7 +58,7 @@ class axi_burst_size_test extends axi_base_test;
         // 【启动 sequence】
         // sequence 内部会自动遍历不同的 burst size 进行测试
         // 例如：axsize=0, 1, 2 等，每个 size 发起一次或多次写事务
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 【等待】让所有 burst size 测试完成
         #200;

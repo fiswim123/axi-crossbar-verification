@@ -36,9 +36,9 @@ class axi_perf_latency_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 创建性能测试序列
         seq = axi_perf_seq::type_id::create("seq");
@@ -51,7 +51,7 @@ class axi_perf_latency_test extends axi_base_test;
 
         // 在 Master 0 的 sequencer 上启动性能序列
         // 序列会自动记录延迟数据并在 scoreboard 中统计
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待所有响应返回
         #200;

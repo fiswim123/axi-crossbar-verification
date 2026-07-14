@@ -45,10 +45,10 @@ class axi_bp_all_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待 5 个时钟周期让 DUT 稳定
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 【配置所有通道的反压概率】
         // 遍历所有 4 个 slave，同时配置 3 个通道的反压
@@ -82,7 +82,7 @@ class axi_bp_all_test extends axi_base_test;
         seq.s_count = 6;
 
         // 启动序列
-        seq.start(env.sqr[0]);
+        seq.start(env.mst_agent[0].sequencer);
 
         // 等待所有事务完成
         // 多通道反压下事务完成时间更长，需要充足的等待时间

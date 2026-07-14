@@ -45,8 +45,8 @@ class axi_outstanding_read_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 【等待复位释放 + 稳定】
-        @(posedge env.mst_drv[0].vif.aresetn);
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // ============================================================
         // 预写阶段：写入已知数据供后续读取
@@ -67,7 +67,7 @@ class axi_outstanding_read_test extends axi_base_test;
             wr_seq.s_id   = 8'h10;
 
             // 【启动写 sequence】顺序写入，确保数据写入完成
-            wr_seq.start(env.sqr[0]);
+            wr_seq.start(env.mst_agent[0].sequencer);
         end
 
         // 【等待】确保所有写事务的响应都已返回
@@ -91,7 +91,7 @@ class axi_outstanding_read_test extends axi_base_test;
         // 【启动 outstanding 读 sequence】
         // sequence 内部会自动发起多个 outstanding 读事务
         // start() 是阻塞调用，会等待所有读事务完成
-        rd_seq.start(env.sqr[0]);
+        rd_seq.start(env.mst_agent[0].sequencer);
 
         // 【等待】确保所有读响应都已处理
         #200;

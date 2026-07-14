@@ -53,10 +53,10 @@ class axi_bp_rready_test extends axi_base_test;
         phase.raise_objection(this);
 
         // 等待复位释放
-        @(posedge env.mst_drv[0].vif.aresetn);
+        @(posedge env.mst_agent[0].driver.vif.aresetn);
 
         // 等待 5 个时钟周期
-        repeat(5) @(posedge env.mst_drv[0].vif.aclk);
+        repeat(5) @(posedge env.mst_agent[0].driver.vif.aclk);
 
         // 【阶段 1: 预写入数据】
         // 先往 4 个连续地址写入已知数据
@@ -75,7 +75,7 @@ class axi_bp_rready_test extends axi_base_test;
             wr_seq.s_id   = 8'h10;
 
             // 启动写序列
-            wr_seq.start(env.sqr[0]);
+            wr_seq.start(env.mst_agent[0].sequencer);
         end
 
         // 【配置 slave 响应延迟，制造 R 通道反压】
@@ -101,7 +101,7 @@ class axi_bp_rready_test extends axi_base_test;
             rd_seq.s_id   = 8'h10;
 
             // 启动读序列
-            rd_seq.start(env.sqr[0]);
+            rd_seq.start(env.mst_agent[0].sequencer);
         end
 
         // 等待所有事务完成
