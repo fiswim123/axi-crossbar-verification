@@ -197,16 +197,25 @@ package axi_pkg;
     //   axi_random_test.sv         - 随机参数测试
     //   axi_random_concurrent_test.sv - 随机并发测试
     //
-    // 性能测试：
-    //   axi_perf_latency_test.sv   - 延迟性能测试
-    //   axi_perf_bandwidth_test.sv - 带宽性能测试
+    // 边界测试（合并版）：
+    //   axi_boundary_test.sv       - 边界地址 + 最大突发长度 + 最大 Outstanding
     //
-    // 复位测试：
-    //   axi_reset_wr_test.sv       - 写通道复位测试
-    //   axi_reset_rd_test.sv       - 读通道复位测试
-    //   axi_reset_recovery_test.sv - 复位恢复测试
+    // 反压测试（合并版）：
+    //   axi_backpressure_test.sv   - W/R/B 通道反压 + 全通道反压
     //
-    // 全路由测试：
+    // 错误测试（合并版）：
+    //   axi_error_test.sv          - SLVERR + DECERR + 错误恢复
+    //
+    // Outstanding 测试（合并版）：
+    //   axi_outstanding_test.sv    - 写 Outstanding + 读 Outstanding
+    //
+    // 性能测试（合并版）：
+    //   axi_perf_test.sv           - 延迟 + 带宽
+    //
+    // 复位测试（合并版）：
+    //   axi_reset_test.sv          - 写通道复位 + 读通道复位 + 复位恢复
+    //
+    // 其他测试：
     //   axi_full_routing_test.sv   - 全路由覆盖测试
     `include "tests/axi_base_test.sv"
     `include "tests/axi_basic_test.sv"
@@ -214,27 +223,16 @@ package axi_pkg;
     `include "tests/axi_protocol_test.sv"
     `include "tests/axi_burst_size_test.sv"
     `include "tests/axi_outstanding_test.sv"
-    `include "tests/axi_outstanding_read_test.sv"
     `include "tests/axi_multi_master_test.sv"
     `include "tests/axi_same_slave_test.sv"
     `include "tests/axi_interleave_test.sv"
-    `include "tests/axi_err_slverr_test.sv"
-    `include "tests/axi_err_decerr_test.sv"
-    `include "tests/axi_err_recovery_test.sv"
-    `include "tests/axi_boundary_addr_test.sv"
-    `include "tests/axi_boundary_burst_test.sv"
-    `include "tests/axi_boundary_ostd_test.sv"
-    `include "tests/axi_bp_wready_test.sv"
-    `include "tests/axi_bp_bready_test.sv"
-    `include "tests/axi_bp_rready_test.sv"
-    `include "tests/axi_bp_all_test.sv"
+    `include "tests/axi_boundary_test.sv"
+    `include "tests/axi_backpressure_test.sv"
+    `include "tests/axi_error_test.sv"
     `include "tests/axi_random_test.sv"
     `include "tests/axi_random_concurrent_test.sv"
-    `include "tests/axi_perf_latency_test.sv"
-    `include "tests/axi_perf_bandwidth_test.sv"
-    `include "tests/axi_reset_wr_test.sv"
-    `include "tests/axi_reset_rd_test.sv"
-    `include "tests/axi_reset_recovery_test.sv"
+    `include "tests/axi_perf_test.sv"
+    `include "tests/axi_reset_test.sv"
     `include "tests/axi_full_routing_test.sv"
 
 // ============================================================================
