@@ -1409,7 +1409,9 @@ axi_basic_test.run_phase()
 │                                                                   │
 ├───────────────────────────────────────────────────────────────────┤
 │                        检查层                                      │
-│  axi_scoreboard.sv  ← 收到 txn, 比较期望值 vs 实际值              │
+│  axi_scoreboard.sv  ← 收到 txn, 路由验证 + 数据比对              │
+│                      双端口: mst_imp + slv_imp                    │
+│                      check_phase 延迟匹配                         │
 │  axi_coverage.sv    ← 收到 txn, 更新覆盖率                       │
 └───────────────────────────────────────────────────────────────────┘
 ```
@@ -1431,7 +1433,7 @@ verification/
 │   ├── axi_monitor.sv    ← Monitor（被动观察）
 │   ├── axi_mst_agent.sv  ← Master Agent（封装 drv+sqr+mon）
 │   ├── axi_slv_agent.sv  ← Slave Agent（封装 drv+mon）
-│   ├── axi_scoreboard.sv ← Scoreboard（数据校验）
+│   ├── axi_scoreboard.sv ← Scoreboard（路由验证 + 数据校验）
 │   ├── axi_coverage.sv   ← Coverage（覆盖率）
 │   ├── axi_slv_cfg.sv    ← Slave 配置对象
 │   └── axi_env.sv        ← Environment（顶层环境）
@@ -1444,7 +1446,7 @@ verification/
 ├── tests/                ← 测试用例（配置环境+启动序列）
 │   ├── axi_base_test.sv  ← 基类（创建env）
 │   ├── axi_basic_test.sv ← 基本读写
-│   └── ...（共27个）
+│   └── ...（共17个，已合并同类测试）
 │
 └── tb/                   ← Testbench 顶层
     └── axi_crossbar_tb.sv ← 时钟/复位/DUT例化/config_db/run_test()
@@ -1454,6 +1456,48 @@ verification/
 - `infra/`（原 `env/`）：基础设施文件，不是 UVM Environment
 - `components/axi_env.sv`：才是真正的 UVM Environment 类
 - 两者名字相似但含义不同，已通过文件夹区分
+
+### 路由验证机制
+
+本项目实现了**双端 Scoreboard**，用于验证 AXI Crossbar 的路由正确性：
+
+```
+Master Monitor ──→ mst_imp ──→ write_master()
+                                    │
+                                    ▼
+                               记录期望路由
+                                    │
+Slave Monitor  ──→ slv_imp ──→ write_slave()
+                                    │
+                                    ▼
+                               检查实际路由
+```
+
+**验证策略**：
+1. Master Monitor 观测"进入 DUT"的事务，记录期望的 Slave ID
+2. Slave Monitor 观测"离开 DUT"的事务，获取实际的 Slave ID
+3. 在 `check_phase` 中比对：事务是否到达正确的 Slave？
+
+**关键代码**：
+```systemverilog
+// axi_scoreboard.sv
+`uvm_analysis_imp_decl(_master)
+`uvm_analysis_imp_decl(_slave)
+
+class axi_scoreboard extends uvm_scoreboard;
+    uvm_analysis_imp_master #(axi_txn, axi_scoreboard) mst_imp;
+    uvm_analysis_imp_slave #(axi_txn, axi_scoreboard) slv_imp;
+
+    // check_phase: 仿真结束时进行路由验证
+    function void check_phase(uvm_phase phase);
+        // 比对 Master 事务和 Slave 事务
+        foreach (mst_wr_txns[i]) begin
+            int expected_slave = mst_wr_txns[i].addr[15:12];
+            // 在 Slave 事务中查找匹配...
+        end
+    endfunction
+endclass
+```
 
 ---
 
@@ -1486,39 +1530,29 @@ verification/
 | `axi_perf_seq.sv` | 性能测试 | 高吞吐量场景 |
 | `axi_same_slave_seq.sv` | 同一 Slave 竞争 | 多个 Master 同时访问同一 Slave |
 
-### Test 文件（了解即可，不需要精读）
+### Test 文件（共 17 个，已合并同类测试）
 
-| 文件 | 测试目的 |
-|------|---------|
-| `axi_base_test.sv` | 所有 test 的基类，build_phase 中创建 env |
-| `axi_basic_test.sv` | 基本读写功能：写4个Slave → 读回来 → Scoreboard比较 |
-| `axi_random_test.sv` | 随机激励测试 |
-| `axi_routing_test.sv` | 地址路由正确性 |
-| `axi_full_routing_test.sv` | 全路由覆盖 |
-| `axi_boundary_addr_test.sv` | 边界地址测试 |
-| `axi_boundary_burst_test.sv` | 最大突发长度边界 |
-| `axi_boundary_ostd_test.sv` | 最大 Outstanding 边界 |
-| `axi_bp_wready_test.sv` | W 通道反压 |
-| `axi_bp_rready_test.sv` | R 通道反压 |
-| `axi_bp_bready_test.sv` | B 通道反压 |
-| `axi_bp_all_test.sv` | 全通道反压 |
-| `axi_burst_size_test.sv` | 不同 burst size |
-| `axi_err_slverr_test.sv` | 从机错误响应 |
-| `axi_err_decerr_test.sv` | 解码错误响应 |
-| `axi_err_recovery_test.sv` | 错误恢复 |
-| `axi_interleave_test.sv` | 读写交织 |
-| `axi_multi_master_test.sv` | 多主机并发 |
-| `axi_outstanding_test.sv` | Outstanding 写测试 |
-| `axi_outstanding_read_test.sv` | Outstanding 读测试 |
-| `axi_perf_bandwidth_test.sv` | 带宽性能测试 |
-| `axi_perf_latency_test.sv` | 延迟性能测试 |
-| `axi_protocol_test.sv` | 协议合规测试 |
-| `axi_random_concurrent_test.sv` | 随机并发测试 |
-| `axi_reset_rd_test.sv` | 读通道复位测试 |
-| `axi_reset_wr_test.sv` | 写通道复位测试 |
-| `axi_reset_recovery_test.sv` | 复位恢复测试 |
-| `axi_routing_test.sv` | 基本路由测试 |
-| `axi_same_slave_test.sv` | 同一 Slave 竞争 |
+**合并策略**：将测试场景相似的 Test 合并为一个，减少文件数量，提高可维护性。
+
+| 文件 | 测试目的 | 合并说明 |
+|------|---------|---------|
+| `axi_base_test.sv` | 所有 test 的基类，build_phase 中创建 env | - |
+| `axi_basic_test.sv` | 基本读写功能：写4个Slave → 读回来 → Scoreboard比较 | 验证路由正确性 |
+| `axi_routing_test.sv` | 地址路由正确性 | 验证路由正确性 |
+| `axi_full_routing_test.sv` | 全路由覆盖（所有 Master→Slave 组合） | 验证路由正确性 |
+| `axi_boundary_test.sv` | 边界条件测试 | 合并：边界地址 + 最大突发长度 + 最大 Outstanding |
+| `axi_backpressure_test.sv` | 反压测试 | 合并：W/R/B 通道反压 + 全通道反压 |
+| `axi_error_test.sv` | 错误处理测试 | 合并：SLVERR + DECERR + 错误恢复 |
+| `axi_outstanding_test.sv` | Outstanding 事务测试 | 合并：写 Outstanding + 读 Outstanding |
+| `axi_perf_test.sv` | 性能测试 | 合并：延迟测试 + 带宽测试 |
+| `axi_reset_test.sv` | 复位测试 | 合并：写通道复位 + 读通道复位 + 复位恢复 |
+| `axi_burst_size_test.sv` | 不同 burst size | - |
+| `axi_interleave_test.sv` | 读写交织 | - |
+| `axi_multi_master_test.sv` | 多主机并发 | - |
+| `axi_protocol_test.sv` | 协议合规测试 | - |
+| `axi_random_test.sv` | 随机激励测试 | - |
+| `axi_random_concurrent_test.sv` | 随机并发测试 | - |
+| `axi_same_slave_test.sv` | 同一 Slave 竞争 | - |
 
 ---
 
