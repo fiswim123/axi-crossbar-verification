@@ -65,12 +65,23 @@ class axi_wr_seq extends uvm_sequence #(axi_txn);
         txn.wdata = new[1]; txn.wstrb = new[1];
         txn.wdata[0] = s_data; txn.wstrb[0] = 4'hF;
 
-        // --- 第 3 步：将 transaction 发送给 sequencer ---
-        // start_item(txn)：向 sequencer 请求发送许可（仲裁机制）
-        //   如果 sequencer 正忙或被 lock/grab，此调用会阻塞等待
-        // finish_item(txn)：将 transaction 发送给 driver，并等待 driver 的 item_done 响应
-        //   即 finish_item 会阻塞直到 driver 完成该 transaction 的驱动
-        // 通常 start_item 和 finish_item 配对使用
+        // --- 第 3 步：通过 sequencer 将 transaction 发送给 driver ---
+        //
+        // 完整的 UVM sequence→sequencer→driver 三阶段握手：
+        //
+        //   start_item(txn) →
+        //     向 sequencer 请求发送许可。若多个 sequence 竞争同一 sequencer，
+        //     sequencer 在此进行仲裁（根据优先级/lock/grab 等机制决定谁先发）。
+        //     拿到许可后返回。
+        //
+        //   finish_item(txn) →
+        //     将 txn 交给 sequencer（存入 sequencer 内部的 FIFO），然后阻塞等待。
+        //     Sequencer 通过 seq_item_port 将 txn 转发给 driver。
+        //     Driver 调用 get_next_item() 拿到 txn，驱动信号到 DUT 上，
+        //     完成后调用 item_done() 通知 sequencer。finish_item 收到通知后返回。
+        //
+        // 所以 transaction 的路径是：
+        //   Sequence → Sequencer（仲裁 + 转发）→ Driver（驱动到 DUT）
         start_item(txn); finish_item(txn);
     endtask
 endclass
