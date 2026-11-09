@@ -82,6 +82,10 @@ module axicb_mst_switch_wr
 
     logic                  wch_full;
     logic                  wch_empty;
+    // All configured master-prefix bits participate in the comparison.
+    // The old per-mask subset test made ID 0x30 match 0x10, 0x20 and 0x30.
+    localparam [AXI_ID_W-1:0] MST_ID_ROUTE_MASK =
+        MST0_ID_MASK | MST1_ID_MASK | MST2_ID_MASK | MST3_ID_MASK;
 
 
     ///////////////////////////////////////////////////////////////////////////
@@ -190,10 +194,10 @@ module axicb_mst_switch_wr
 
     // BCH = {RESP, ID}
 
-    assign mst0_bch_targeted = ((MST0_ID_MASK & o_bch[0+:AXI_ID_W]) == MST0_ID_MASK);
-    assign mst1_bch_targeted = ((MST1_ID_MASK & o_bch[0+:AXI_ID_W]) == MST1_ID_MASK);
-    assign mst2_bch_targeted = ((MST2_ID_MASK & o_bch[0+:AXI_ID_W]) == MST2_ID_MASK);
-    assign mst3_bch_targeted = ((MST3_ID_MASK & o_bch[0+:AXI_ID_W]) == MST3_ID_MASK);
+    assign mst0_bch_targeted = ((MST_ID_ROUTE_MASK & o_bch[0+:AXI_ID_W]) == MST0_ID_MASK);
+    assign mst1_bch_targeted = ((MST_ID_ROUTE_MASK & o_bch[0+:AXI_ID_W]) == MST1_ID_MASK);
+    assign mst2_bch_targeted = ((MST_ID_ROUTE_MASK & o_bch[0+:AXI_ID_W]) == MST2_ID_MASK);
+    assign mst3_bch_targeted = ((MST_ID_ROUTE_MASK & o_bch[0+:AXI_ID_W]) == MST3_ID_MASK);
 
     assign i_bvalid[0] = (mst0_bch_targeted) ? o_bvalid : 1'b0;
     assign i_bvalid[1] = (mst1_bch_targeted) ? o_bvalid : 1'b0;

@@ -71,6 +71,8 @@ module axicb_mst_switch_rd
     logic                  mst1_rch_targeted;
     logic                  mst2_rch_targeted;
     logic                  mst3_rch_targeted;
+    localparam [AXI_ID_W-1:0] MST_ID_ROUTE_MASK =
+        MST0_ID_MASK | MST1_ID_MASK | MST2_ID_MASK | MST3_ID_MASK;
 
 
     ///////////////////////////////////////////////////////////////////////////
@@ -132,20 +134,20 @@ module axicb_mst_switch_rd
 
     // RCH = {RESP, ID, DATA}
 
-    assign mst0_rch_targeted = ((MST0_ID_MASK & o_rch[0+:AXI_ID_W]) == MST0_ID_MASK);
-    assign mst1_rch_targeted = ((MST1_ID_MASK & o_rch[0+:AXI_ID_W]) == MST1_ID_MASK);
-    assign mst2_rch_targeted = ((MST2_ID_MASK & o_rch[0+:AXI_ID_W]) == MST2_ID_MASK);
-    assign mst3_rch_targeted = ((MST3_ID_MASK & o_rch[0+:AXI_ID_W]) == MST3_ID_MASK);
+    assign mst0_rch_targeted = ((MST_ID_ROUTE_MASK & o_rch[0+:AXI_ID_W]) == MST0_ID_MASK);
+    assign mst1_rch_targeted = ((MST_ID_ROUTE_MASK & o_rch[0+:AXI_ID_W]) == MST1_ID_MASK);
+    assign mst2_rch_targeted = ((MST_ID_ROUTE_MASK & o_rch[0+:AXI_ID_W]) == MST2_ID_MASK);
+    assign mst3_rch_targeted = ((MST_ID_ROUTE_MASK & o_rch[0+:AXI_ID_W]) == MST3_ID_MASK);
 
     assign i_rvalid[0] = (mst0_rch_targeted) ? o_rvalid : 1'b0;
     assign i_rvalid[1] = (mst1_rch_targeted) ? o_rvalid : 1'b0;
     assign i_rvalid[2] = (mst2_rch_targeted) ? o_rvalid : 1'b0;
     assign i_rvalid[3] = (mst3_rch_targeted) ? o_rvalid : 1'b0;
 
-    assign i_rlast[0] = (mst0_rch_targeted) ? o_rlast : 1'b0;
-    assign i_rlast[1] = (mst1_rch_targeted) ? o_rlast : 1'b0;
-    assign i_rlast[2] = (mst2_rch_targeted) ? o_rlast : 1'b0;
-    assign i_rlast[3] = (mst3_rch_targeted) ? o_rlast : 1'b0;
+    assign i_rlast[0] = (mst0_rch_targeted && o_rvalid) ? o_rlast : 1'b0;
+    assign i_rlast[1] = (mst1_rch_targeted && o_rvalid) ? o_rlast : 1'b0;
+    assign i_rlast[2] = (mst2_rch_targeted && o_rvalid) ? o_rlast : 1'b0;
+    assign i_rlast[3] = (mst3_rch_targeted && o_rvalid) ? o_rlast : 1'b0;
 
     assign o_rready = (mst0_rch_targeted) ? i_rready[0] :
                       (mst1_rch_targeted) ? i_rready[1] :

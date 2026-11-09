@@ -263,11 +263,11 @@ module axicb_slv_switch_rd
                       (rch_grant[3]) ? o_rvalid[3] :
                                        1'b0;
 
-    assign i_rlast = (rch_mr)        ? (rlen==rch_len) & i_rvalid & i_rready :
-                     (rch_grant[0])  ? o_rlast[0] :
-                     (rch_grant[1])  ? o_rlast[1] :
-                     (rch_grant[2])  ? o_rlast[2] :
-                     (rch_grant[3])  ? o_rlast[3] :
+    assign i_rlast = (rch_mr)        ? (rlen==rch_len) & i_rvalid :
+                     (rch_grant[0])  ? o_rlast[0] & o_rvalid[0] :
+                     (rch_grant[1])  ? o_rlast[1] & o_rvalid[1] :
+                     (rch_grant[2])  ? o_rlast[2] & o_rvalid[2] :
+                     (rch_grant[3])  ? o_rlast[3] & o_rvalid[3] :
                                        1'b0;
 
     assign o_rready[0] = rch_grant[0] & i_rready & !rch_mr;

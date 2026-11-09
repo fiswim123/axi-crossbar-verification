@@ -126,6 +126,7 @@ module axicb_slv_if
     logic [RCH_W         -1:0] rch;
     logic                      wlast;
     logic                      wlast_r;
+    logic                      rlast_r;
 
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -476,7 +477,7 @@ module axicb_slv_if
     .rclk    (i_aclk),
     .rrst_n  (i_aresetn),
     .rinc    (r_rinc),
-    .rdata   ({i_rlast, rch}),
+    .rdata   ({rlast_r, rch}),
     .rempty  (r_empty),
     .arempty ()
     );
@@ -485,6 +486,7 @@ module axicb_slv_if
     assign r_winc = o_rvalid & ~r_full;
 
     assign i_rvalid = ~r_empty;
+    assign i_rlast = ~r_empty & rlast_r;
     assign r_rinc = ~r_empty & i_rready;
 
 
@@ -652,12 +654,13 @@ module axicb_slv_if
     .data_in  ({o_rlast,o_rch}),
     .push     (o_rvalid),
     .full     (r_full),
-    .data_out ({i_rlast, rch}),
+    .data_out ({rlast_r, rch}),
     .pull     (i_rready),
     .empty    (r_empty)
     );
 
     assign i_rvalid = ~r_empty;
+    assign i_rlast = ~r_empty & rlast_r;
     assign o_rready = ~r_full;
 
 

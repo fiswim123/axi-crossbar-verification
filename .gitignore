@@ -31,6 +31,13 @@ DVEfiles/
 inter.vpd
 ucli.key
 .fsm.sch.verilog.xml
+verdiLog/
+fsdbreportLog/
+fsdb2vcdLog/
+novas.conf
+novas.rc
+Setup.env
+report.txt
 
 # IDE files
 .vscode/
